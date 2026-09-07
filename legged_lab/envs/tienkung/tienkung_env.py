@@ -32,6 +32,7 @@ from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
 from isaaclab.utils.math import quat_apply, quat_conjugate, quat_rotate
 from scipy.spatial.transform import Rotation
 
+from legged_lab.envs.agibot_x2.walk_cfg import AgiBotX2WalkFlatEnvCfg
 from legged_lab.envs.tienkung.run_cfg import TienKungRunFlatEnvCfg
 from legged_lab.envs.tienkung.run_with_sensor_cfg import TienKungRunWithSensorFlatEnvCfg
 from legged_lab.envs.tienkung.walk_cfg import TienKungWalkFlatEnvCfg
@@ -51,6 +52,7 @@ class TienKungEnv(VecEnv):
             | TienKungWalkFlatEnvCfg
             | TienKungWalkWithSensorFlatEnvCfg
             | TienKungRunWithSensorFlatEnvCfg
+            | AgiBotX2WalkFlatEnvCfg
         ),
         headless,
     ):
@@ -59,6 +61,7 @@ class TienKungEnv(VecEnv):
             | TienKungWalkFlatEnvCfg
             | TienKungWalkWithSensorFlatEnvCfg
             | TienKungRunWithSensorFlatEnvCfg
+            | AgiBotX2WalkFlatEnvCfg
         )
 
         self.cfg = cfg
@@ -160,56 +163,14 @@ class TienKungEnv(VecEnv):
         self.feet_cfg = SceneEntityCfg(name="contact_sensor", body_names=self.cfg.robot.feet_body_names)
         self.feet_cfg.resolve(self.scene)
 
-        self.feet_body_ids, _ = self.robot.find_bodies(
-            name_keys=["ankle_roll_l_link", "ankle_roll_r_link"], preserve_order=True
-        )
-        self.elbow_body_ids, _ = self.robot.find_bodies(
-            name_keys=["elbow_pitch_l_link", "elbow_pitch_r_link"], preserve_order=True
-        )
-        self.left_leg_ids, _ = self.robot.find_joints(
-            name_keys=[
-                "hip_roll_l_joint",
-                "hip_pitch_l_joint",
-                "hip_yaw_l_joint",
-                "knee_pitch_l_joint",
-                "ankle_pitch_l_joint",
-                "ankle_roll_l_joint",
-            ],
-            preserve_order=True,
-        )
-        self.right_leg_ids, _ = self.robot.find_joints(
-            name_keys=[
-                "hip_roll_r_joint",
-                "hip_pitch_r_joint",
-                "hip_yaw_r_joint",
-                "knee_pitch_r_joint",
-                "ankle_pitch_r_joint",
-                "ankle_roll_r_joint",
-            ],
-            preserve_order=True,
-        )
-        self.left_arm_ids, _ = self.robot.find_joints(
-            name_keys=[
-                "shoulder_pitch_l_joint",
-                "shoulder_roll_l_joint",
-                "shoulder_yaw_l_joint",
-                "elbow_pitch_l_joint",
-            ],
-            preserve_order=True,
-        )
-        self.right_arm_ids, _ = self.robot.find_joints(
-            name_keys=[
-                "shoulder_pitch_r_joint",
-                "shoulder_roll_r_joint",
-                "shoulder_yaw_r_joint",
-                "elbow_pitch_r_joint",
-            ],
-            preserve_order=True,
-        )
-        self.ankle_joint_ids, _ = self.robot.find_joints(
-            name_keys=["ankle_pitch_l_joint", "ankle_pitch_r_joint", "ankle_roll_l_joint", "ankle_roll_r_joint"],
-            preserve_order=True,
-        )
+        robot_cfg = self.cfg.robot
+        self.feet_body_ids, _ = self.robot.find_bodies(name_keys=robot_cfg.feet_link_names, preserve_order=True)
+        self.elbow_body_ids, _ = self.robot.find_bodies(name_keys=robot_cfg.hand_anchor_link_names, preserve_order=True)
+        self.left_leg_ids, _ = self.robot.find_joints(name_keys=robot_cfg.left_leg_joint_names, preserve_order=True)
+        self.right_leg_ids, _ = self.robot.find_joints(name_keys=robot_cfg.right_leg_joint_names, preserve_order=True)
+        self.left_arm_ids, _ = self.robot.find_joints(name_keys=robot_cfg.left_arm_joint_names, preserve_order=True)
+        self.right_arm_ids, _ = self.robot.find_joints(name_keys=robot_cfg.right_arm_joint_names, preserve_order=True)
+        self.ankle_joint_ids, _ = self.robot.find_joints(name_keys=robot_cfg.ankle_joint_names, preserve_order=True)
 
         self.obs_scales = self.cfg.normalization.obs_scales
         self.add_noise = self.cfg.noise.add_noise
@@ -218,8 +179,9 @@ class TienKungEnv(VecEnv):
         self.sim_step_counter = 0
         self.time_out_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
 
-        self.left_arm_local_vec = torch.tensor([0.0, 0.0, -0.3], device=self.device).repeat((self.num_envs, 1))
-        self.right_arm_local_vec = torch.tensor([0.0, 0.0, -0.3], device=self.device).repeat((self.num_envs, 1))
+        hand_offset = torch.tensor(self.cfg.robot.hand_local_offset, device=self.device)
+        self.left_arm_local_vec = hand_offset.repeat((self.num_envs, 1))
+        self.right_arm_local_vec = hand_offset.repeat((self.num_envs, 1))
 
         # Init gait parameter
         self.gait_phase = torch.zeros(self.num_envs, 2, dtype=torch.float, device=self.device, requires_grad=False)

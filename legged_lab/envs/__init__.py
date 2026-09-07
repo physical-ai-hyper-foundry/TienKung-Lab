@@ -16,6 +16,10 @@
 # with additional modifications by the TienKung-Lab Project,
 # and is distributed under the BSD-3-Clause license.
 
+from legged_lab.envs.agibot_x2.walk_cfg import (
+    AgiBotX2WalkAgentCfg,
+    AgiBotX2WalkFlatEnvCfg,
+)
 from legged_lab.envs.base.base_env import BaseEnv
 from legged_lab.envs.base.base_env_config import BaseAgentCfg, BaseEnvCfg
 from legged_lab.envs.tienkung.run_cfg import TienKungRunAgentCfg, TienKungRunFlatEnvCfg
@@ -42,3 +46,4 @@ task_registry.register(
 task_registry.register(
     "run_with_sensor", TienKungEnv, TienKungRunWithSensorFlatEnvCfg(), TienKungRunWithSensorAgentCfg()
 )
+task_registry.register("x2_walk", TienKungEnv, AgiBotX2WalkFlatEnvCfg(), AgiBotX2WalkAgentCfg())

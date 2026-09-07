@@ -66,6 +66,50 @@ class RobotCfg:
     action_scale: float = 0.25
     terminate_contacts_body_names: list = []
     feet_body_names: list = []
+    # Ordered [left, right] / [left..., right...]. The AMP observation layout, the gait
+    # rewards and the ankle/hip regularization rewards index these positionally, so the
+    # order matters as much as the names. Defaults are TienKung2-lite's.
+    feet_link_names: list = ["ankle_roll_l_link", "ankle_roll_r_link"]
+    # The hand pose is approximated as this link's frame plus a fixed local offset,
+    # since the wrist links are merged away during URDF conversion.
+    hand_anchor_link_names: list = ["elbow_pitch_l_link", "elbow_pitch_r_link"]
+    hand_local_offset: tuple = (0.0, 0.0, -0.3)
+    left_leg_joint_names: list = [
+        "hip_roll_l_joint",
+        "hip_pitch_l_joint",
+        "hip_yaw_l_joint",
+        "knee_pitch_l_joint",
+        "ankle_pitch_l_joint",
+        "ankle_roll_l_joint",
+    ]
+    right_leg_joint_names: list = [
+        "hip_roll_r_joint",
+        "hip_pitch_r_joint",
+        "hip_yaw_r_joint",
+        "knee_pitch_r_joint",
+        "ankle_pitch_r_joint",
+        "ankle_roll_r_joint",
+    ]
+    left_arm_joint_names: list = [
+        "shoulder_pitch_l_joint",
+        "shoulder_roll_l_joint",
+        "shoulder_yaw_l_joint",
+        "elbow_pitch_l_joint",
+    ]
+    right_arm_joint_names: list = [
+        "shoulder_pitch_r_joint",
+        "shoulder_roll_r_joint",
+        "shoulder_yaw_r_joint",
+        "elbow_pitch_r_joint",
+    ]
+    ankle_joint_names: list = [
+        "ankle_pitch_l_joint",
+        "ankle_pitch_r_joint",
+        "ankle_roll_l_joint",
+        "ankle_roll_r_joint",
+    ]
+    # Nominal lateral foot separation at the default pose, used by feet_y_distance.
+    feet_y_distance_target: float = 0.299
 
 
 @configclass
