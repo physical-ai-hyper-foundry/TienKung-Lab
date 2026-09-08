@@ -59,9 +59,9 @@ DEFAULT_POSE = {
 }  # fmt: skip
 MIRRORED = {"hip_roll", "shoulder_roll"}  # negated on the right side
 GAINS = {
-    "hip_roll": (450, 6.5), "hip_pitch": (280, 4.0), "hip_yaw": (330, 3.3), "knee": (280, 4.0),
-    "ankle_pitch": (30, 2.5), "ankle_roll": (20, 1.7),
-    "shoulder_pitch": (70, 3.4), "shoulder_roll": (23, 1.7), "shoulder_yaw": (7, 0.7), "elbow": (7, 0.7),
+    "hip_roll": (327, 4.7), "hip_pitch": (468, 6.7), "hip_yaw": (401, 4.0), "knee": (536, 7.7),
+    "ankle_pitch": (172, 5.5), "ankle_roll": (216, 5.4),
+    "shoulder_pitch": (98, 4.9), "shoulder_roll": (33, 2.5), "shoulder_yaw": (94, 3.7), "elbow": (29, 2.9),
 }  # fmt: skip
 LOCKED_GAIN = (200.0, 5.0)
 

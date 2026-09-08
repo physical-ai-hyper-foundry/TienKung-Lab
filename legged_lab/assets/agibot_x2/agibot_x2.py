@@ -75,8 +75,17 @@ AGIBOT_X2_CFG = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.9,
     actuators={
-        # Gains are TienKung's scaled by the effort-limit ratio between the two robots;
-        # limits and armature come from the upstream URDF / MuJoCo description.
+        # Gains reproduce TienKung's closed-loop joint dynamics on X2's inertia rather than
+        # scaling by torque: omega_n is carried over per joint (kp = I_x2 * omega_n^2), damping
+        # matches TienKung's ratio capped at zeta = 1.0, and kp is reduced where a 0.15 rad
+        # step would saturate the motor. Effort/velocity limits and armature come from the
+        # upstream URDF / MuJoCo description.
+        #
+        # This matters most at the ankles and wrists: the vendor's uniform armature of
+        # 0.03 kg*m^2 is 69-95% of their total inertia, and TienKung's model has no armature
+        # at all. Torque-ratio scaling missed that and left the ankles ~8x too soft -- with
+        # those gains the robot tips over in 1.5 s in MuJoCo, and with these it stands
+        # indefinitely (legged_lab/scripts/smoke_test_x2_mujoco.py --policy none).
         "legs": ImplicitActuatorCfg(
             joint_names_expr=[
                 ".*_hip_roll_joint",
@@ -97,16 +106,16 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_knee_joint": 11.94,
             },
             stiffness={
-                ".*_hip_roll_joint": 450,
-                ".*_hip_pitch_joint": 280,
-                ".*_hip_yaw_joint": 330,
-                ".*_knee_joint": 280,
+                ".*_hip_roll_joint": 327,
+                ".*_hip_pitch_joint": 468,
+                ".*_hip_yaw_joint": 401,
+                ".*_knee_joint": 536,
             },
             damping={
-                ".*_hip_roll_joint": 6.5,
-                ".*_hip_pitch_joint": 4.0,
-                ".*_hip_yaw_joint": 3.3,
-                ".*_knee_joint": 4.0,
+                ".*_hip_roll_joint": 4.7,
+                ".*_hip_pitch_joint": 6.7,
+                ".*_hip_yaw_joint": 4.0,
+                ".*_knee_joint": 7.7,
             },
             armature=0.03,
             friction=0.3,
@@ -125,12 +134,12 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_ankle_roll_joint": 14.66,
             },
             stiffness={
-                ".*_ankle_pitch_joint": 30,
-                ".*_ankle_roll_joint": 20,
+                ".*_ankle_pitch_joint": 172,
+                ".*_ankle_roll_joint": 216,
             },
             damping={
-                ".*_ankle_pitch_joint": 2.5,
-                ".*_ankle_roll_joint": 1.7,
+                ".*_ankle_pitch_joint": 5.5,
+                ".*_ankle_roll_joint": 5.4,
             },
             armature=0.03,
             friction=0.3,
@@ -155,16 +164,16 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_elbow_joint": 14.66,
             },
             stiffness={
-                ".*_shoulder_pitch_joint": 70,
-                ".*_shoulder_roll_joint": 23,
-                ".*_shoulder_yaw_joint": 7,
-                ".*_elbow_joint": 7,
+                ".*_shoulder_pitch_joint": 98,
+                ".*_shoulder_roll_joint": 33,
+                ".*_shoulder_yaw_joint": 94,
+                ".*_elbow_joint": 29,
             },
             damping={
-                ".*_shoulder_pitch_joint": 3.4,
-                ".*_shoulder_roll_joint": 1.7,
-                ".*_shoulder_yaw_joint": 0.7,
-                ".*_elbow_joint": 0.7,
+                ".*_shoulder_pitch_joint": 4.9,
+                ".*_shoulder_roll_joint": 2.5,
+                ".*_shoulder_yaw_joint": 3.7,
+                ".*_elbow_joint": 2.9,
             },
             armature=0.03,
             friction=0.3,
