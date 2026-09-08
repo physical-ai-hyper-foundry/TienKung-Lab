@@ -53,6 +53,13 @@ FILES = [
     (f"{UPSTREAM_DIR}/X2-Ultra_simple_collision.urdf", "urdf/x2_ultra_simple_collision.urdf"),
     (f"{UPSTREAM_DIR}/X2-Ultra.urdf", "urdf/x2_ultra.urdf"),
     (f"{UPSTREAM_DIR}/X2-Ultra.xml", "mjcf/x2_ultra.xml"),
+    (f"{UPSTREAM_DIR}/scene.xml", "mjcf/scene.xml"),
+]
+
+# The MuJoCo files assume the upstream flat layout; repoint them at ours.
+MJCF_PATCHES = [
+    ("mjcf/x2_ultra.xml", 'meshdir="meshes/"', 'meshdir="../meshes/"'),
+    ("mjcf/scene.xml", 'file="X2-Ultra.xml"', 'file="x2_ultra.xml"'),
 ]
 
 
@@ -85,6 +92,16 @@ def download_meshes() -> None:
         urllib.request.urlretrieve(f"{REPO_RAW}/{REF}/{UPSTREAM_DIR}/meshes/{name}", path)
         print(f"  [{i}/{len(names)}] {name}")
     print(f"  meshes ready ({len(names)} files)")
+
+
+def patch_mjcf() -> None:
+    """Repoint the MuJoCo files at this repository's directory layout (idempotent)."""
+    for local, old, new in MJCF_PATCHES:
+        path = os.path.join(ASSET_DIR, local)
+        text = open(path).read()
+        if old in text:
+            open(path, "w").write(text.replace(old, new))
+            print(f"  patched      {local}")
 
 
 def write_locked_urdf() -> None:
@@ -130,6 +147,7 @@ def main():
     print("Downloading AgiBot X2 description...")
     for remote, local in FILES:
         download(remote, local)
+    patch_mjcf()
 
     if not args.skip_meshes:
         print("Downloading meshes...")
