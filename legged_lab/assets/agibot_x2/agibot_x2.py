@@ -79,7 +79,10 @@ AGIBOT_X2_CFG = ArticulationCfg(
         # scaling by torque: omega_n is carried over per joint (kp = I_x2 * omega_n^2), damping
         # matches TienKung's ratio capped at zeta = 1.0, and kp is reduced where a 0.15 rad
         # step would saturate the motor. Effort/velocity limits and armature come from the
-        # upstream URDF / MuJoCo description.
+        # upstream URDF / MuJoCo description. The MuJoCo file's frictionloss (0.3 N*m) is
+        # deliberately not carried over: Isaac Lab's ``friction`` is PhysX's unitless joint
+        # friction coefficient, not a Coulomb torque, and the URDF declares no joint
+        # friction -- so the joints stay frictionless like TienKung's.
         #
         # This matters most at the ankles and wrists: the vendor's uniform armature of
         # 0.03 kg*m^2 is 69-95% of their total inertia, and TienKung's model has no armature
@@ -118,7 +121,6 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_knee_joint": 7.7,
             },
             armature=0.03,
-            friction=0.3,
         ),
         "feet": ImplicitActuatorCfg(
             joint_names_expr=[
@@ -142,7 +144,6 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_ankle_roll_joint": 5.4,
             },
             armature=0.03,
-            friction=0.3,
         ),
         "arms": ImplicitActuatorCfg(
             joint_names_expr=[
@@ -176,7 +177,6 @@ AGIBOT_X2_CFG = ArticulationCfg(
                 ".*_elbow_joint": 2.9,
             },
             armature=0.03,
-            friction=0.3,
         ),
     },
 )
