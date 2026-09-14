@@ -94,6 +94,8 @@ MuJoCo 검증: 기존 게인은 자세 유지만으로 1.52 초에 넘어짐, �
 | `0dfdc14` feat | `prepare_agibot_x2.py`(fetch + 20DOF 잠금 URDF), `AGIBOT_X2_CFG`, `RobotCfg` 이름 설정화, `x2_walk` 태스크 |
 | `10ddec3` test | `smoke_test_x2_mujoco.py` — 맥에서 MuJoCo 로 X2 구동, 렌더링 |
 | `5e4ac0b` fix | PD 게인 관성 기준 재산출 |
+| `a30014f` docs | 이 계획·상태 문서 |
+| `60c7181` fix | `friction=0.3` 제거 — Isaac Lab `friction` 은 PhysX 무차원 계수라 MJCF `frictionloss`(N·m)와 불일치 |
 
 `RobotCfg` 의 기본값은 기존 하드코딩과 바이트 단위로 동일해 TienKung 태스크 동작은 불변 (회귀 검증).
 
@@ -105,13 +107,19 @@ MuJoCo 검증: 기존 게인은 자세 유지만으로 1.52 초에 넘어짐, �
 - MJCF 로드, sensordata 레이아웃 (jointpos@16, jointvel@47, 총 78)
 - 관측 구성 정확: 같은 코드로 TienKung + `walk.pt` 가 6 초에 3.15 m 보행 (명령 0.5 → 실측 0.53 m/s)
 - 신규 PD 게인으로 기립 유지
+- Isaac Lab 2.1.0 소스 대조: `ActuatorBaseCfg` 에 `armature`(관절 관성에 직접 가산, kg·m²) 와
+  `friction` 필드 존재. 단 `friction` 은 PhysX 의 **무차원 관절 마찰 계수**(F_resist ≤ μ·F_spatial)
+  라 MJCF `frictionloss=0.3` N·m 를 그대로 옮긴 것은 의미 불일치 → X2 cfg 에서 제거. X2 URDF 에
+  `<dynamics>` 가 없어 USD 관절 마찰은 0 이며, TienKung URDF(`friction="0.0"`)와 같은 조건이 된다
+- `convert_urdf.py` 플래그(`--merge-joints --joint-stiffness --joint-damping --joint-target-type none`)
+  가 v2.1.0 스크립트와 일치
+- `prepare_agibot_x2.py` 재실행 결과가 커밋된 `x2_ultra_locked20.urdf` 와 바이트 일치 (멱등)
 
 **미검증 (Isaac Lab 필요 — macOS 실행 불가)**
 - USD 변환
 - `robot.joint_names` 실제 순서. BFS 예측으로는 TienKung 과 인덱스 `(0,1)↔(4,5)` swap 만 다름.
   TienKung 에서 BFS 규칙은 실측 일치했으나 `merge_fixed_joints` 동작은 미검증
 - `SceneEntityCfg` 정규식 해석, contact sensor, 보상 26항
-- `ImplicitActuatorCfg` 의 `armature` / `friction` 필드 호환성
 
 관절 순서는 3단계 학습의 선결 조건이 아니다. 관측·액션이 같은 Isaac 순서로 일관되고 보상·AMP 관측은
 `find_joints(preserve_order=True)` 로 이름 해석하므로 학습은 순서를 몰라도 된다. 순서는 sim2sim /
