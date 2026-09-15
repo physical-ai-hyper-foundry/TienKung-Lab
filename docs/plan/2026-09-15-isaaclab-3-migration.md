@@ -80,7 +80,7 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
   구조를 요구하는데 3.0 의 `RslRlOnPolicyRunnerCfg` 는 `actor`/`critic`/`obs_groups` 구조다.
   isaaclab_rl 을 어댑터로 끼우는 것보다 2.1 의 5개 configclass 를 그대로 가져오는 편이 작다.
 - **`--headless` 플래그는 남긴다.** 3.0 에서 폐기됐지만 동작하고, 스크립트가 `args_cli.headless` 를 쓴다.
-  README 에서는 `--viz kit` / 생략 을 안내한다.
+  README 에서는 `--viz kit` / 생략 을 안내한다. 단 스트리밍 시에는 `--headless` 를 넘기면 안 된다(5절 (b)).
 - **with_sensor 변형(카메라·라이다·높이맵)은 이번 범위 밖.** `TiledCamera` 서브클래스와 커스텀
   `RayCaster.reset`(torch `drift` 가정)은 3.0 Warp 백엔드에서 검증하지 않았다. import 는 되게 유지한다.
 
@@ -119,8 +119,11 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
   400 step 실행 → 낙상 0/64 (무작위 정책은 3~46 step 에 종료). 관측 파이프라인·쿼터니언 순서 일치로 판정.
 - 브라우저 스트리밍: 웹 뷰어는 IsaacSim 레포 `tools/docker/web-viewer/Dockerfile` 로 로컬 빌드된다(공개
   base 이미지, NGC 로그인 불필요). 개발 PC 에서 `ISAACSIM_HOST=192.168.0.6` 으로 빌드해 host network 로
-  8210 에 띄웠고, 학습은 `PUBLIC_IP=192.168.0.6 --livestream 1` 로 실행. 맥에서 8210(HTTP 200)·49100 도달
-  확인. 4096 env + 렌더로 GPU 10.8 GB / 3 s/iter. 브라우저에서 영상이 실제로 뜨는지는 사용자 클릭으로 확인.
+  8210 에 띄웠고, 학습은 `PUBLIC_IP=192.168.0.6 --livestream 1 --viz kit` 로 실행. 두 가지 함정:
+  (a) 뷰어가 `crypto.randomUUID` 를 써서 `http://<ip>` 접속(비보안 컨텍스트)에서는 TypeError → `tools/web-viewer/`
+  의 폴리필 이미지로 해결. (b) `--headless` 를 넘기면 3.0 이 visualizer 를 전부 끄고, 3.0 의 `render()` 는
+  visualizer 가 없으면 Kit 앱 루프를 돌리지 않아 프레임 0 → 인코더 세션 fps 0, 50 초 뒤 SERVER_DISCONNECTED.
+  `--viz kit` 필수. 4096 env: 3.0 s/iter(렌더 없음) → 4.3 s/iter(렌더).
 
 ## 6. 남는 위험
 

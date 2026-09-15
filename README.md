@@ -110,12 +110,17 @@ Launch training with livestreaming bound to the same IP, then open `http://<trai
 Chromium browser:
 
 ```bash
-PUBLIC_IP=<training-machine-ip> python legged_lab/scripts/train.py --task=x2_walk --livestream 1
+PUBLIC_IP=<training-machine-ip> python legged_lab/scripts/train.py --task=x2_walk --livestream 1 --viz kit
 ```
 
 `--livestream 1` forces headless mode, enables `omni.kit.livestream.app` and listens on TCP 49100 (signalling) and
 UDP 47998 (media); training keeps running whether or not a viewer is attached. `--livestream 2` binds to
 127.0.0.1 only, for a viewer on the same machine. One client can attach to an Isaac Sim instance at a time.
+
+`--viz kit` is required and `--headless` must **not** be passed: in Isaac Lab 3.0 the Kit visualizer is what pumps
+the app loop that renders the streamed viewport. With `--headless` (or no `--viz`) the launcher disables every
+visualizer, the encoder session opens with 0 fps and the viewer drops after ~50 s with `SERVER_DISCONNECTED`.
+Expect roughly 40 % longer iterations while the viewport is rendered.
 
 ## Usage
 
