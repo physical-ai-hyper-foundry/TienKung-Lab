@@ -17,7 +17,9 @@ repository's BSD-3-Clause license.
 | `mjcf/x2_ultra.xml` | upstream, unmodified (sim2sim) |
 | `meshes/` | upstream, git-ignored (~90 MB) |
 | `urdf/x2_ultra_locked20.urdf` | generated — waist/neck/wrist fixed, mesh paths repointed |
-| `usd/x2_ultra_locked20/x2_ultra_locked20.usda` | generated — not committed, see below |
+| `usd/x2_ultra_locked20/x2_ultra_locked20.usda` | 3.0 importer output (layered, nested links), not committed |
+| `usd/x2_ultra_locked20/x2_ultra_locked20_flat.usd` | `flatten_usd.py` output, loaded by `AGIBOT_X2_CFG` |
+| `flatten_usd.py` | flattens the importer's nested link hierarchy (see below) |
 | `agibot_x2.py` | `AGIBOT_X2_CFG` articulation config |
 
 ## Regenerating
@@ -27,18 +29,32 @@ repository's BSD-3-Clause license.
 python legged_lab/scripts/prepare_agibot_x2.py
 
 # 2. Convert to USD. Requires Isaac Lab 3.0 (Isaac Sim 6.0) -- run this on the training machine.
-#    The 3.0 importer takes an output *directory* and writes <dir>/<urdf-stem>/<urdf-stem>.usda,
-#    i.e. usd/x2_ultra_locked20/x2_ultra_locked20.usda, which is what AGIBOT_X2_CFG.usd_path expects.
-cd <path-to-IsaacLab>
-./isaaclab.sh -p scripts/tools/convert_urdf.py \
-    <path-to-TienKung-Lab>/legged_lab/assets/agibot_x2/urdf/x2_ultra_locked20.urdf \
-    <path-to-TienKung-Lab>/legged_lab/assets/agibot_x2/usd \
+#    The 3.0 importer takes an output *directory* and writes <dir>/<urdf-stem>/<urdf-stem>.usda
+#    (a layered asset with a payloads/ folder next to it). convert_urdf.py is not part of the wheel:
+#    clone https://github.com/isaac-sim/IsaacLab at tag v3.0.0-beta2.patch1 for the script.
+python <path-to-IsaacLab>/scripts/tools/convert_urdf.py \
+    legged_lab/assets/agibot_x2/urdf/x2_ultra_locked20.urdf \
+    legged_lab/assets/agibot_x2/usd \
     --merge-joints --joint-stiffness 0.0 --joint-damping 0.0 --joint-target-type none
 
-# 3. Record the resulting body/joint order on first use and compare it with the prediction in
-#    docs/plan/2026-09-15-agibot-x2-port.md (the 3.0 importer was rewritten; merge_fixed_joints is
-#    now a URDF pre-processing step).
+# 3. Flatten the link hierarchy. The 6.0 importer nests each child link under its parent
+#    (Geometry/pelvis/left_hip_pitch_link/...), and Isaac Lab 3.0.0-beta2.patch1 only puts a contact
+#    reporter on the root body of such assets (isaac-sim/IsaacLab#5126, fixed upstream after the tag).
+#    The script moves all 21 bodies directly under Geometry/, bakes world poses and remaps joint targets.
+python legged_lab/assets/agibot_x2/flatten_usd.py \
+    legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20.usda \
+    legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20_flat.usd
 ```
+
+Measured on the first 3.0 run (2026-09-15): 21 bodies, 20 joints, and `robot.joint_names` is
+
+```
+hip_pitch(L,R) shoulder_pitch(L,R) hip_roll(L,R) shoulder_roll(L,R) hip_yaw(L,R) shoulder_yaw(L,R)
+knee(L,R) elbow(L,R) ankle_pitch(L,R) ankle_roll(L,R)
+```
+
+i.e. the BFS prediction in `docs/plan/2026-09-15-agibot-x2-port.md`: identical to TienKung except that
+indices `(0,1)` and `(4,5)` (hip_roll / hip_pitch) are swapped.
 
 ## Joint budget
 
