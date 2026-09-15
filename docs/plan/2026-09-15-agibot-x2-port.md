@@ -115,11 +115,13 @@ MuJoCo 검증: 기존 게인은 자세 유지만으로 1.52 초에 넘어짐, �
   가 v2.1.0 스크립트와 일치
 - `prepare_agibot_x2.py` 재실행 결과가 커밋된 `x2_ultra_locked20.urdf` 와 바이트 일치 (멱등)
 
-**미검증 (Isaac Lab 필요 — macOS 실행 불가)**
-- USD 변환
-- `robot.joint_names` 실제 순서. BFS 예측으로는 TienKung 과 인덱스 `(0,1)↔(4,5)` swap 만 다름.
-  TienKung 에서 BFS 규칙은 실측 일치했으나 `merge_fixed_joints` 동작은 미검증
-- `SceneEntityCfg` 정규식 해석, contact sensor, 보상 26항
+**검증됨 (개발 PC, Isaac Lab 3.0.0-beta2.patch1 + Isaac Sim 6.0.1, 2026-09-15)**
+- USD 변환: 강체 21, 관절 20. 6.0 임포터의 중첩 계층 문제와 `flatten_usd.py` 조치는
+  `docs/plan/2026-09-15-isaaclab-3-migration.md` 5절 참조
+- `robot.joint_names` 실측 = BFS 예측. TienKung 과 인덱스 `(0,1)↔(4,5)`(hip_roll↔hip_pitch) swap 만 다름.
+  `merge_fixed_joints` 는 예측대로 11개 고정 관절을 pelvis 등에 병합
+- `SceneEntityCfg` 정규식 해석, contact sensor(21 body), 보상 26항 모두 초기화·실행됨.
+  `x2_walk` 64 env 3 iter 학습 루프 정상
 
 관절 순서는 3단계 학습의 선결 조건이 아니다. 관측·액션이 같은 Isaac 순서로 일관되고 보상·AMP 관측은
 `find_joints(preserve_order=True)` 로 이름 해석하므로 학습은 순서를 몰라도 된다. 순서는 sim2sim /
@@ -131,9 +133,9 @@ MuJoCo 검증: 기존 게인은 자세 유지만으로 1.52 초에 넘어짐, �
 [맥 가능]   B. X2 sim2sim 완성 — smoke test 재사용, 토크 모터 PD + 센서 인덱스 16/47   ← 다음
             C. AMP expert 데이터 생성에서 Isaac 의존 제거 (play_amp_animation 의 FK 를 MuJoCo 로)
 
-[GPU 필요]  USD 변환 (assets/agibot_x2/README.md 의 명령)
-            x2_walk 학습 (AMP off, amp_task_reward_lerp=1.0) → 평지 보행 확인이 실현 가능성 판정선
-            robot.joint_names 기록, dof_pos_limits 보상 모니터링
+[GPU 필요]  x2_walk 학습 (AMP off, amp_task_reward_lerp=1.0) → 평지 보행 확인이 실현 가능성 판정선   ← 다음
+            dof_pos_limits 보상 모니터링
+            (USD 변환·joint_names 기록은 2026-09-15 완료)
 
 [사용자]    SMPL-X 바디모델 + AMASS 등록/다운로드
             GMR params.py 4곳 + ik_configs/smplx_to_x2.json 작성·튜닝

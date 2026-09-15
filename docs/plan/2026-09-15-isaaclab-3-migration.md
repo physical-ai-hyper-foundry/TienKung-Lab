@@ -94,15 +94,37 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
 - 한 인스턴스에 한 클라이언트만 붙는다. "사용자가 클릭하면 보여준다"는 UX 는 뷰어 URL 을 여는 것으로
   구현하고, 스트림 자체는 학습 시작 시 항상 켜 둔다.
 
-## 5. 진행 상태 (2026-09-15, macOS 정적 작업분)
+## 5. 진행 상태 (2026-09-15)
 
-[0]~[6] 완료. 커밋은 `git log main..feat/isaaclab-3-migration` 참조. 검증은 py_compile 과 grep 기반
-잔여 스캔(삭제된 API 호출 0, `.data.*` 뒤 `.torch` 누락 0, `isaaclab_rl` 참조 0)까지. [7] 은 GPU 머신 대기.
+[0]~[6] macOS 정적 작업 완료. [7] 은 개발 PC(Ubuntu 24.04, RTX 5070 Ti 16 GB, driver 595.84)에서 실행했다.
+
+- 환경: uv venv Python 3.12.3, isaacsim 6.0.1.0, isaaclab 3.0.0b2.post1, torch 2.10.0+cu128. isaaclab 휠 설치가
+  torch 를 2.11 PyPI 빌드로 올려 `libtorch_cuda.so: undefined symbol: ncclDevCommDestroy` 가 났고, cu128 2.10.0 으로
+  재고정해 해결. 내장 `rsl_rl`(2.3.1) 을 마지막에 설치해 rsl-rl-lib 5.0.1 을 대체.
+- `pip install -e .` 는 gcc 가 없는 머신에서 `pynput → evdev` 소스 빌드에 실패한다. `--no-deps` 로 설치한 뒤
+  mujoco / matplotlib / pynput(`--no-deps`) 을 따로 넣었다. README 에 기재.
+- `legged_lab/terrains/ray_caster.py`: 3.0 의 `isaaclab.sensors.ray_caster.RayCaster` 는 백엔드 팩토리라 외부
+  서브클래스가 import 시점에 `ImportError` → PhysX 구현체(`isaaclab_physx.sensors.ray_caster.ray_caster.RayCaster`)
+  를 상속하도록 변경. 기본 `reset` 이 3축 drift 를 재샘플하므로 z 축 0.1 배만 덧씌운다.
+- X2 USD 변환 성공: 강체 21, 관절 20, 순서는 BFS 예측대로(TienKung 과 `(0,1)↔(4,5)` swap). **단** 6.0 임포터는
+  링크를 부모 링크 아래 중첩(`Geometry/pelvis/left_hip_pitch_link/...`)해 저장하고, beta2.patch1 의
+  `activate_contact_sensors` 는 첫 강체에서 탐색을 멈춰 pelvis 에만 contact reporter 가 붙는다 →
+  `undesired_contacts` 의 body 정규식 해석 실패. 업스트림 isaac-sim/IsaacLab#5126, develop 에 2026-07-16 수정
+  (#6378) 됐으나 릴리스에는 미포함. 조치: `legged_lab/assets/agibot_x2/flatten_usd.py` 로 계층을 평탄화(월드
+  포즈 베이크, 관계 36건 재매핑, 출력 `x2_ultra_locked20_flat.usd`) → 21개 전부 reporter 확인.
+- `x2_walk` 64 env 3 iter: 정상(obs 750, 레포 코드발 DeprecationWarning 0). `WARN_ON_TORCH_QUATF_ACCESS=1`
+  경고 8곳은 모두 sim 쿼터니언을 3.0 `quat_*` 함수에 그대로 넘기는 곳으로, 순서 가정이 없다.
+- TienKung `walk` 64 env 3 iter: 정상. 회귀: 2.1 에서 학습한 `Exported_policy/walk.pt` 를 3.0 env 에서
+  400 step 실행 → 낙상 0/64 (무작위 정책은 3~46 step 에 종료). 관측 파이프라인·쿼터니언 순서 일치로 판정.
+- 브라우저 스트리밍: `--livestream 2` 로 학습을 띄우면 `omni.kit.livestream.{core,webrtc,app}` 이 기동되고
+  시그널링 포트 49100 이 열리며 학습이 계속된다(64 env 렌더 포함 GPU 4.3 GB / 30 %). 웹 뷰어 컨테이너 연결은
+  NGC 로그인이 필요해 아직 미검증.
 
 ## 6. 남는 위험
 
-- 3.0 은 beta. `isaaclab==3.0.0-beta2.patch1` 로 핀하고 올릴 때만 의도적으로 올린다.
-- 쿼터니언은 틀려도 에러가 없다. GPU 첫 실행에서 `WARN_ON_TORCH_QUATF_ACCESS=1` 로 전수 확인하고,
-  TienKung `walk` 태스크가 기존 `Exported_policy/walk.pt` 로 걷는지(회귀)로 관측 일치를 판정한다.
-- URDF 임포터가 재작성돼 merge 결과(강체 21개, 관절 순서)가 2.1 과 같다는 보장이 없다. 변환 후
-  `robot.body_names` / `robot.joint_names` 를 기록해 `docs/plan/2026-09-15-agibot-x2-port.md` 의 예측과 대조한다.
+- 3.0 은 beta. `isaaclab==3.0.0b2.post1` 로 핀하고 올릴 때만 의도적으로 올린다.
+- `flatten_usd.py` 는 임시 조치다. #6378 이 포함된 릴리스로 올리면 스크립트와 `_flat.usd` 를 제거하고
+  `AGIBOT_X2_CFG.usd_path` 를 임포터 원본(`x2_ultra_locked20.usda`)으로 되돌린다.
+- 웹 뷰어(Docker Compose, 포트 8210) 연결과 "학습 프로세스 네이티브 + 뷰어 컨테이너만" 구성이 되는지는
+  NGC 로그인 뒤 확인한다.
+- with_sensor 변형(카메라·라이다·높이맵)은 미검증.

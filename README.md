@@ -63,6 +63,15 @@ cd TienKung-Lab
 pip install -e .
 ```
 
+  On Linux, `pynput` (used by `sim2sim.py`) pulls in `evdev`, which is built from source and needs a C compiler.
+  Either install `build-essential` first, or install without dependencies and add the rest by hand:
+
+```bash
+pip install -e . --no-deps
+pip install "mujoco==3.3.2" mujoco-python-viewer matplotlib
+pip install --no-deps pynput python-xlib six
+```
+
 - Install the bundled rsl-rl library **last**. Isaac Lab's `rsl-rl` extra pulls in `rsl-rl-lib` 5.x, which this
   repository's AMP runner is not written against; the editable install below must shadow it.
 
@@ -88,7 +97,10 @@ Launch the training process with livestreaming enabled and open the viewer URL (
 python legged_lab/scripts/train.py --task=x2_walk --livestream 2
 ```
 
-Only one client can attach to an Isaac Sim instance at a time.
+`--livestream 2` (private WebRTC) forces headless mode, enables `omni.kit.livestream.app` and listens for the
+signalling connection on port 49100; training keeps running while the stream is up. The web viewer itself is
+a separate Docker Compose deployment from NGC (requires `docker login nvcr.io`). Only one client can attach to
+an Isaac Sim instance at a time.
 
 ## Usage
 
