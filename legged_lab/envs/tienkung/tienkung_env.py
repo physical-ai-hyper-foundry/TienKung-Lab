@@ -17,7 +17,6 @@
 # and is distributed under the BSD-3-Clause license.
 
 import isaaclab.sim as sim_utils
-import isaacsim.core.utils.torch as torch_utils  # type: ignore
 import numpy as np
 import torch
 from isaaclab.assets.articulation import Articulation
@@ -27,9 +26,11 @@ from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
 from isaaclab.sensors import ContactSensor, RayCaster
 from isaaclab.sensors.camera import TiledCamera
-from isaaclab.sim import PhysxCfg, SimulationContext
+from isaaclab.sim import SimulationContext
 from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
 from isaaclab.utils.math import quat_apply, quat_conjugate, quat_rotate
+from isaaclab.utils.seed import configure_seed
+from isaaclab_physx.physics import PhysxCfg
 from scipy.spatial.transform import Rotation
 
 from legged_lab.envs.agibot_x2.walk_cfg import AgiBotX2WalkFlatEnvCfg
@@ -76,7 +77,7 @@ class TienKungEnv(VecEnv):
             device=cfg.device,
             dt=cfg.sim.dt,
             render_interval=cfg.sim.decimation,
-            physx=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
+            physics=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 friction_combine_mode="multiply",
                 restitution_combine_mode="multiply",
@@ -133,7 +134,7 @@ class TienKungEnv(VecEnv):
 
         self.max_episode_length_s = self.cfg.scene.max_episode_length_s
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.step_dt)
-        self.num_actions = self.robot.data.default_joint_pos.shape[1]
+        self.num_actions = self.robot.data.default_joint_pos.torch.shape[1]
         self.clip_actions = self.cfg.normalization.clip_actions
         self.clip_obs = self.cfg.normalization.clip_observations
 
@@ -237,8 +238,8 @@ class TienKungEnv(VecEnv):
         dof_vel[:, self.left_arm_ids] = visual_motion_frame[44:48]
         dof_vel[:, self.right_arm_ids] = visual_motion_frame[48:52]
 
-        self.robot.write_joint_position_to_sim(dof_pos)
-        self.robot.write_joint_velocity_to_sim(dof_vel)
+        self.robot.write_joint_position_to_sim_index(position=dof_pos)
+        self.robot.write_joint_velocity_to_sim_index(velocity=dof_vel)
 
         env_ids = torch.arange(self.num_envs, device=device)
 
@@ -246,46 +247,47 @@ class TienKungEnv(VecEnv):
         root_pos[2] += 0.3
 
         euler = visual_motion_frame[3:6].cpu().numpy()
-        quat_xyzw = Rotation.from_euler("XYZ", euler, degrees=False).as_quat()  # [x, y, z, w]
-        quat_wxyz = torch.tensor(
-            [quat_xyzw[3], quat_xyzw[0], quat_xyzw[1], quat_xyzw[2]], dtype=torch.float32, device=device
+        # Isaac Lab 3.0 stores quaternions as (x, y, z, w), the same order SciPy returns.
+        quat_xyzw = torch.tensor(
+            Rotation.from_euler("XYZ", euler, degrees=False).as_quat(), dtype=torch.float32, device=device
         )
 
         lin_vel = visual_motion_frame[26:29].clone()
         ang_vel = torch.zeros_like(lin_vel)
 
-        # root state: [x, y, z, qw, qx, qy, qz, vx, vy, vz, wx, wy, wz]
+        # root state: [x, y, z, qx, qy, qz, qw, vx, vy, vz, wx, wy, wz]
         root_state = torch.zeros((self.num_envs, 13), device=device)
         root_state[:, 0:3] = torch.tile(root_pos.unsqueeze(0), (self.num_envs, 1))
-        root_state[:, 3:7] = torch.tile(quat_wxyz.unsqueeze(0), (self.num_envs, 1))
+        root_state[:, 3:7] = torch.tile(quat_xyzw.unsqueeze(0), (self.num_envs, 1))
         root_state[:, 7:10] = torch.tile(lin_vel.unsqueeze(0), (self.num_envs, 1))
         root_state[:, 10:13] = torch.tile(ang_vel.unsqueeze(0), (self.num_envs, 1))
 
-        self.robot.write_root_state_to_sim(root_state, env_ids)
+        self.robot.write_root_link_pose_to_sim_index(root_pose=root_state[:, :7], env_ids=env_ids)
+        self.robot.write_root_com_velocity_to_sim_index(root_velocity=root_state[:, 7:], env_ids=env_ids)
         self.sim.render()
         self.sim.step()
         self.scene.update(dt=self.step_dt)
 
         left_hand_pos = (
-            self.robot.data.body_state_w[:, self.elbow_body_ids[0], :3]
-            - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
+            self.robot.data.body_pos_w.torch[:, self.elbow_body_ids[0]]
+            - self.robot.data.root_link_pos_w.torch
+            + quat_rotate(self.robot.data.body_quat_w.torch[:, self.elbow_body_ids[0]], self.left_arm_local_vec)
         )
         right_hand_pos = (
-            self.robot.data.body_state_w[:, self.elbow_body_ids[1], :3]
-            - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
+            self.robot.data.body_pos_w.torch[:, self.elbow_body_ids[1]]
+            - self.robot.data.root_link_pos_w.torch
+            + quat_rotate(self.robot.data.body_quat_w.torch[:, self.elbow_body_ids[1]], self.right_arm_local_vec)
         )
-        left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_hand_pos)
-        right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_hand_pos)
+        left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), left_hand_pos)
+        right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), right_hand_pos)
         left_foot_pos = (
-            self.robot.data.body_state_w[:, self.feet_body_ids[0], :3] - self.robot.data.root_state_w[:, 0:3]
+            self.robot.data.body_pos_w.torch[:, self.feet_body_ids[0]] - self.robot.data.root_link_pos_w.torch
         )
         right_foot_pos = (
-            self.robot.data.body_state_w[:, self.feet_body_ids[1], :3] - self.robot.data.root_state_w[:, 0:3]
+            self.robot.data.body_pos_w.torch[:, self.feet_body_ids[1]] - self.robot.data.root_link_pos_w.torch
         )
-        left_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_foot_pos)
-        right_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_foot_pos)
+        left_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), left_foot_pos)
+        right_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), right_foot_pos)
 
         self.left_leg_dof_pos =  dof_pos[:, self.left_leg_ids] 
         self.right_leg_dof_pos = dof_pos[:, self.right_leg_ids]
@@ -315,15 +317,15 @@ class TienKungEnv(VecEnv):
 
     def compute_current_observations(self):
         robot = self.robot
-        net_contact_forces = self.contact_sensor.data.net_forces_w_history
+        net_contact_forces = self.contact_sensor.data.net_forces_w_history.torch
 
-        ang_vel = robot.data.root_ang_vel_b
-        projected_gravity = robot.data.projected_gravity_b
+        ang_vel = robot.data.root_ang_vel_b.torch
+        projected_gravity = robot.data.projected_gravity_b.torch
         command = self.command_generator.command
-        joint_pos = robot.data.joint_pos - robot.data.default_joint_pos
-        joint_vel = robot.data.joint_vel - robot.data.default_joint_vel
+        joint_pos = robot.data.joint_pos.torch - robot.data.default_joint_pos.torch
+        joint_vel = robot.data.joint_vel.torch - robot.data.default_joint_vel.torch
         action = self.action_buffer._circular_buffer.buffer[:, -1, :]
-        root_lin_vel = robot.data.root_lin_vel_b
+        root_lin_vel = robot.data.root_lin_vel_b.torch
         feet_contact = torch.max(torch.norm(net_contact_forces[:, :, self.feet_cfg.body_ids], dim=-1), dim=1)[0] > 0.5
 
         current_actor_obs = torch.cat(
@@ -356,8 +358,8 @@ class TienKungEnv(VecEnv):
         critic_obs = self.critic_obs_buffer.buffer.reshape(self.num_envs, -1)
         if self.cfg.scene.height_scanner.enable_height_scan:
             height_scan = (
-                self.height_scanner.data.pos_w[:, 2].unsqueeze(1)
-                - self.height_scanner.data.ray_hits_w[..., 2]
+                self.height_scanner.data.pos_w.torch[:, 2].unsqueeze(1)
+                - self.height_scanner.data.ray_hits_w.torch[..., 2]
                 - self.cfg.normalization.height_scan_offset
             ) * self.obs_scales.height_scan
             critic_obs = torch.cat([critic_obs, height_scan], dim=-1)
@@ -420,7 +422,7 @@ class TienKungEnv(VecEnv):
         delayed_actions = self.action_buffer.compute(actions)
         self.action = torch.clip(delayed_actions, -self.clip_actions, self.clip_actions).to(self.device)
 
-        processed_actions = self.action * self.action_scale + self.robot.data.default_joint_pos
+        processed_actions = self.action * self.action_scale + self.robot.data.default_joint_pos.torch
 
         self.avg_feet_force_per_step = torch.zeros(
             self.num_envs, len(self.feet_cfg.body_ids), dtype=torch.float, device=self.device, requires_grad=False
@@ -430,20 +432,22 @@ class TienKungEnv(VecEnv):
         )
         for _ in range(self.cfg.sim.decimation):
             self.sim_step_counter += 1
-            self.robot.set_joint_position_target(processed_actions)
+            self.robot.set_joint_position_target_index(target=processed_actions)
             self.scene.write_data_to_sim()
             self.sim.step(render=False)
             self.scene.update(dt=self.physics_dt)
 
             self.avg_feet_force_per_step += torch.norm(
-                self.contact_sensor.data.net_forces_w[:, self.feet_cfg.body_ids, :3], dim=-1
+                self.contact_sensor.data.net_forces_w.torch[:, self.feet_cfg.body_ids, :3], dim=-1
             )
-            self.avg_feet_speed_per_step += torch.norm(self.robot.data.body_lin_vel_w[:, self.feet_body_ids, :], dim=-1)
+            self.avg_feet_speed_per_step += torch.norm(
+                self.robot.data.body_lin_vel_w.torch[:, self.feet_body_ids, :], dim=-1
+            )
 
         self.avg_feet_force_per_step /= self.cfg.sim.decimation
         self.avg_feet_speed_per_step /= self.cfg.sim.decimation
 
-        if not self.headless:
+        if self.sim.is_rendering:
             self.sim.render()
 
         self.episode_length_buf += 1
@@ -464,7 +468,7 @@ class TienKungEnv(VecEnv):
         return actor_obs, reward_buf, self.reset_buf, self.extras
 
     def check_reset(self):
-        net_contact_forces = self.contact_sensor.data.net_forces_w_history
+        net_contact_forces = self.contact_sensor.data.net_forces_w_history.torch
 
         reset_buf = torch.any(
             torch.max(
@@ -500,8 +504,8 @@ class TienKungEnv(VecEnv):
 
             if self.cfg.scene.height_scanner.enable_height_scan:
                 height_scan = (
-                    self.height_scanner.data.pos_w[:, 2].unsqueeze(1)
-                    - self.height_scanner.data.ray_hits_w[..., 2]
+                    self.height_scanner.data.pos_w.torch[:, 2].unsqueeze(1)
+                    - self.height_scanner.data.ray_hits_w.torch[..., 2]
                     - self.cfg.normalization.height_scan_offset
                 )
                 height_scan_noise_vec = torch.zeros_like(height_scan[0])
@@ -516,7 +520,8 @@ class TienKungEnv(VecEnv):
         )
 
     def update_terrain_levels(self, env_ids):
-        distance = torch.norm(self.robot.data.root_pos_w[env_ids, :2] - self.scene.env_origins[env_ids, :2], dim=1)
+        root_pos = self.robot.data.root_pos_w.torch[env_ids, :2]
+        distance = torch.norm(root_pos - self.scene.env_origins[env_ids, :2], dim=1)
         move_up = distance > self.scene.terrain.cfg.terrain_generator.size[0] / 2
         move_down = (
             distance < torch.norm(self.command_generator.command[env_ids, :2], dim=1) * self.max_episode_length_s * 0.5
@@ -535,33 +540,33 @@ class TienKungEnv(VecEnv):
     def get_amp_obs_for_expert_trans(self):
         """Gets amp obs from policy"""
         left_hand_pos = (
-            self.robot.data.body_state_w[:, self.elbow_body_ids[0], :3]
-            - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[0], 3:7], self.left_arm_local_vec)
+            self.robot.data.body_pos_w.torch[:, self.elbow_body_ids[0]]
+            - self.robot.data.root_link_pos_w.torch
+            + quat_rotate(self.robot.data.body_quat_w.torch[:, self.elbow_body_ids[0]], self.left_arm_local_vec)
         )
         right_hand_pos = (
-            self.robot.data.body_state_w[:, self.elbow_body_ids[1], :3]
-            - self.robot.data.root_state_w[:, 0:3]
-            + quat_rotate(self.robot.data.body_state_w[:, self.elbow_body_ids[1], 3:7], self.right_arm_local_vec)
+            self.robot.data.body_pos_w.torch[:, self.elbow_body_ids[1]]
+            - self.robot.data.root_link_pos_w.torch
+            + quat_rotate(self.robot.data.body_quat_w.torch[:, self.elbow_body_ids[1]], self.right_arm_local_vec)
         )
-        left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_hand_pos)
-        right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_hand_pos)
+        left_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), left_hand_pos)
+        right_hand_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), right_hand_pos)
         left_foot_pos = (
-            self.robot.data.body_state_w[:, self.feet_body_ids[0], :3] - self.robot.data.root_state_w[:, 0:3]
+            self.robot.data.body_pos_w.torch[:, self.feet_body_ids[0]] - self.robot.data.root_link_pos_w.torch
         )
         right_foot_pos = (
-            self.robot.data.body_state_w[:, self.feet_body_ids[1], :3] - self.robot.data.root_state_w[:, 0:3]
+            self.robot.data.body_pos_w.torch[:, self.feet_body_ids[1]] - self.robot.data.root_link_pos_w.torch
         )
-        left_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), left_foot_pos)
-        right_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_state_w[:, 3:7]), right_foot_pos)
-        self.left_leg_dof_pos = self.robot.data.joint_pos[:, self.left_leg_ids]
-        self.right_leg_dof_pos = self.robot.data.joint_pos[:, self.right_leg_ids]
-        self.left_leg_dof_vel = self.robot.data.joint_vel[:, self.left_leg_ids]
-        self.right_leg_dof_vel = self.robot.data.joint_vel[:, self.right_leg_ids]
-        self.left_arm_dof_pos = self.robot.data.joint_pos[:, self.left_arm_ids]
-        self.right_arm_dof_pos = self.robot.data.joint_pos[:, self.right_arm_ids]
-        self.left_arm_dof_vel = self.robot.data.joint_vel[:, self.left_arm_ids]
-        self.right_arm_dof_vel = self.robot.data.joint_vel[:, self.right_arm_ids]
+        left_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), left_foot_pos)
+        right_foot_pos = quat_apply(quat_conjugate(self.robot.data.root_link_quat_w.torch), right_foot_pos)
+        self.left_leg_dof_pos = self.robot.data.joint_pos.torch[:, self.left_leg_ids]
+        self.right_leg_dof_pos = self.robot.data.joint_pos.torch[:, self.right_leg_ids]
+        self.left_leg_dof_vel = self.robot.data.joint_vel.torch[:, self.left_leg_ids]
+        self.right_leg_dof_vel = self.robot.data.joint_vel.torch[:, self.right_leg_ids]
+        self.left_arm_dof_pos = self.robot.data.joint_pos.torch[:, self.left_arm_ids]
+        self.right_arm_dof_pos = self.robot.data.joint_pos.torch[:, self.right_arm_ids]
+        self.left_arm_dof_vel = self.robot.data.joint_vel.torch[:, self.left_arm_ids]
+        self.right_arm_dof_vel = self.robot.data.joint_vel.torch[:, self.right_arm_ids]
         return torch.cat(
             (
                 self.right_arm_dof_pos,
@@ -588,7 +593,7 @@ class TienKungEnv(VecEnv):
             rep.set_global_seed(seed)
         except ModuleNotFoundError:
             pass
-        return torch_utils.set_seed(seed)
+        return configure_seed(seed)
 
     def _calculate_gait_para(self) -> None:
         """

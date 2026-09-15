@@ -17,7 +17,6 @@
 # and is distributed under the BSD-3-Clause license.
 
 import isaaclab.sim as sim_utils
-import isaacsim.core.utils.torch as torch_utils  # type: ignore
 import numpy as np
 import torch
 from isaaclab.assets.articulation import Articulation
@@ -26,8 +25,10 @@ from isaaclab.managers import EventManager, RewardManager
 from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
 from isaaclab.scene import InteractiveScene
 from isaaclab.sensors import ContactSensor, RayCaster
-from isaaclab.sim import PhysxCfg, SimulationContext
+from isaaclab.sim import SimulationContext
 from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
+from isaaclab.utils.seed import configure_seed
+from isaaclab_physx.physics import PhysxCfg
 
 from legged_lab.envs.base.base_env_config import BaseEnvCfg
 from legged_lab.utils.env_utils.scene import SceneCfg
@@ -50,7 +51,7 @@ class BaseEnv(VecEnv):
             device=cfg.device,
             dt=cfg.sim.dt,
             render_interval=cfg.sim.decimation,
-            physx=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
+            physics=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
             physics_material=sim_utils.RigidBodyMaterialCfg(
                 friction_combine_mode="multiply",
                 restitution_combine_mode="multiply",
@@ -95,7 +96,7 @@ class BaseEnv(VecEnv):
 
         self.max_episode_length_s = self.cfg.scene.max_episode_length_s
         self.max_episode_length = np.ceil(self.max_episode_length_s / self.step_dt)
-        self.num_actions = self.robot.data.default_joint_pos.shape[1]
+        self.num_actions = self.robot.data.default_joint_pos.torch.shape[1]
         self.clip_actions = self.cfg.normalization.clip_actions
         self.clip_obs = self.cfg.normalization.clip_observations
 
@@ -135,13 +136,13 @@ class BaseEnv(VecEnv):
 
     def compute_current_observations(self):
         robot = self.robot
-        net_contact_forces = self.contact_sensor.data.net_forces_w_history
+        net_contact_forces = self.contact_sensor.data.net_forces_w_history.torch
 
-        ang_vel = robot.data.root_ang_vel_b
-        projected_gravity = robot.data.projected_gravity_b
+        ang_vel = robot.data.root_ang_vel_b.torch
+        projected_gravity = robot.data.projected_gravity_b.torch
         command = self.command_generator.command
-        joint_pos = robot.data.joint_pos - robot.data.default_joint_pos
-        joint_vel = robot.data.joint_vel - robot.data.default_joint_vel
+        joint_pos = robot.data.joint_pos.torch - robot.data.default_joint_pos.torch
+        joint_vel = robot.data.joint_vel.torch - robot.data.default_joint_vel.torch
         action = self.action_buffer._circular_buffer.buffer[:, -1, :]
         current_actor_obs = torch.cat(
             [
@@ -155,7 +156,7 @@ class BaseEnv(VecEnv):
             dim=-1,
         )
 
-        root_lin_vel = robot.data.root_lin_vel_b
+        root_lin_vel = robot.data.root_lin_vel_b.torch
         feet_contact = torch.max(torch.norm(net_contact_forces[:, :, self.feet_cfg.body_ids], dim=-1), dim=1)[0] > 0.5
         current_critic_obs = torch.cat(
             [current_actor_obs, root_lin_vel * self.obs_scales.lin_vel, feet_contact], dim=-1
@@ -175,8 +176,8 @@ class BaseEnv(VecEnv):
         critic_obs = self.critic_obs_buffer.buffer.reshape(self.num_envs, -1)
         if self.cfg.scene.height_scanner.enable_height_scan:
             height_scan = (
-                self.height_scanner.data.pos_w[:, 2].unsqueeze(1)
-                - self.height_scanner.data.ray_hits_w[..., 2]
+                self.height_scanner.data.pos_w.torch[:, 2].unsqueeze(1)
+                - self.height_scanner.data.ray_hits_w.torch[..., 2]
                 - self.cfg.normalization.height_scan_offset
             ) * self.obs_scales.height_scan
             critic_obs = torch.cat([critic_obs, height_scan], dim=-1)
@@ -225,16 +226,16 @@ class BaseEnv(VecEnv):
         delayed_actions = self.action_buffer.compute(actions)
 
         cliped_actions = torch.clip(delayed_actions, -self.clip_actions, self.clip_actions).to(self.device)
-        processed_actions = cliped_actions * self.action_scale + self.robot.data.default_joint_pos
+        processed_actions = cliped_actions * self.action_scale + self.robot.data.default_joint_pos.torch
 
         for _ in range(self.cfg.sim.decimation):
             self.sim_step_counter += 1
-            self.robot.set_joint_position_target(processed_actions)
+            self.robot.set_joint_position_target_index(target=processed_actions)
             self.scene.write_data_to_sim()
             self.sim.step(render=False)
             self.scene.update(dt=self.physics_dt)
 
-        if not self.headless:
+        if self.sim.is_rendering:
             self.sim.render()
 
         self.episode_length_buf += 1
@@ -253,7 +254,7 @@ class BaseEnv(VecEnv):
         return actor_obs, reward_buf, self.reset_buf, self.extras
 
     def check_reset(self):
-        net_contact_forces = self.contact_sensor.data.net_forces_w_history
+        net_contact_forces = self.contact_sensor.data.net_forces_w_history.torch
 
         reset_buf = torch.any(
             torch.max(
@@ -287,8 +288,8 @@ class BaseEnv(VecEnv):
 
             if self.cfg.scene.height_scanner.enable_height_scan:
                 height_scan = (
-                    self.height_scanner.data.pos_w[:, 2].unsqueeze(1)
-                    - self.height_scanner.data.ray_hits_w[..., 2]
+                    self.height_scanner.data.pos_w.torch[:, 2].unsqueeze(1)
+                    - self.height_scanner.data.ray_hits_w.torch[..., 2]
                     - self.cfg.normalization.height_scan_offset
                 )
                 height_scan_noise_vec = torch.zeros_like(height_scan[0])
@@ -303,7 +304,8 @@ class BaseEnv(VecEnv):
         )
 
     def update_terrain_levels(self, env_ids):
-        distance = torch.norm(self.robot.data.root_pos_w[env_ids, :2] - self.scene.env_origins[env_ids, :2], dim=1)
+        root_pos = self.robot.data.root_pos_w.torch[env_ids, :2]
+        distance = torch.norm(root_pos - self.scene.env_origins[env_ids, :2], dim=1)
         move_up = distance > self.scene.terrain.cfg.terrain_generator.size[0] / 2
         move_down = (
             distance < torch.norm(self.command_generator.command[env_ids, :2], dim=1) * self.max_episode_length_s * 0.5
@@ -327,4 +329,4 @@ class BaseEnv(VecEnv):
             rep.set_global_seed(seed)
         except ModuleNotFoundError:
             pass
-        return torch_utils.set_seed(seed)
+        return configure_seed(seed)
