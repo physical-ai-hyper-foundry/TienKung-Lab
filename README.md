@@ -40,33 +40,56 @@ The codebase is built on IsaacLab, supports Sim2Sim transfer to MuJoCo, and feat
 
 ## Installation
 
-TienKung-Lab is built with IsaacSim 4.5.0 and IsaacLab 2.1.0.
+TienKung-Lab targets **Isaac Sim 6.0.1 + Isaac Lab 3.0.0-beta2.patch1** (Python 3.12, PyTorch 2.10 / CUDA 12.8,
+Blackwell GPUs supported). The 4.5.0 / 2.1.0 combination the project started on no longer works with this code;
+see `docs/decisions/2026-09-15-adr-001-move-to-isaac-sim-6-isaac-lab-3.md` for why.
 
-- Install Isaac Lab by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html). We recommend using the conda installation as it simplifies calling Python scripts from the terminal.
+- Install Isaac Lab 3.0 by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
+  This repository was migrated against the `v3.0.0-beta2.patch1` release; if the `isaaclab` package on the index has
+  moved past it, install Isaac Lab from a source checkout of that tag instead.
+
+```bash
+uv venv --python 3.12 && source .venv/bin/activate
+uv pip install "isaacsim[all,extscache]==6.0.1.0" --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match --prerelease=allow
+uv pip install -U torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cu128
+uv pip install "isaaclab[isaacsim,all]" --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match --prerelease=allow
+```
 
 - Clone this repository separately from the Isaac Lab installation (i.e. outside the `IsaacLab` directory)
 
-- Using a python interpreter that has Isaac Lab installed, install the library
+- Using the python interpreter that has Isaac Lab installed, install the library
 
 ```bash
 cd TienKung-Lab
 pip install -e .
 ```
 
-- Install the rsl-rl library
+- Install the bundled rsl-rl library **last**. Isaac Lab's `rsl-rl` extra pulls in `rsl-rl-lib` 5.x, which this
+  repository's AMP runner is not written against; the editable install below must shadow it.
 
 ```bash
 cd TienKung-Lab/rsl_rl
 pip install -e .
 ```
 
-- Verify that the extension is correctly installed by running the following command:
+- Verify that the extension is correctly installed by running the following command (`--headless` is deprecated
+  in Isaac Lab 3.0; omit `--viz` for headless or pass `--viz kit` for a viewport):
 
 ```bash
-python legged_lab/scripts/train.py --task=walk  --logger=tensorboard --headless --num_envs=64
+python legged_lab/scripts/train.py --task=walk  --logger=tensorboard --num_envs=64
 ```
 
+### Browser streaming of a training run
 
+Isaac Sim 6.0 ships a browser (WebRTC) viewer that is deployed with Docker Compose on an Ubuntu host
+([livestream docs](https://docs.isaacsim.omniverse.nvidia.com/6.0.0/installation/manual_livestream_clients.html)).
+Launch the training process with livestreaming enabled and open the viewer URL (port 8210) in a Chromium browser:
+
+```bash
+python legged_lab/scripts/train.py --task=x2_walk --livestream 2
+```
+
+Only one client can attach to an Isaac Sim instance at a time.
 
 ## Usage
 

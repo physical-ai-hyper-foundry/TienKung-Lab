@@ -8,4 +8,4 @@ wandb
 MUJOCO_LOG.TXT
 .history
 legged_lab/assets/agibot_x2/meshes
-legged_lab/assets/agibot_x2/usd/*.usd
+legged_lab/assets/agibot_x2/usd/

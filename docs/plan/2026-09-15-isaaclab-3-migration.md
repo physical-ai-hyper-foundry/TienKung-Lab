@@ -94,7 +94,12 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
 - 한 인스턴스에 한 클라이언트만 붙는다. "사용자가 클릭하면 보여준다"는 UX 는 뷰어 URL 을 여는 것으로
   구현하고, 스트림 자체는 학습 시작 시 항상 켜 둔다.
 
-## 5. 남는 위험
+## 5. 진행 상태 (2026-09-15, macOS 정적 작업분)
+
+[0]~[6] 완료. 커밋은 `git log main..feat/isaaclab-3-migration` 참조. 검증은 py_compile 과 grep 기반
+잔여 스캔(삭제된 API 호출 0, `.data.*` 뒤 `.torch` 누락 0, `isaaclab_rl` 참조 0)까지. [7] 은 GPU 머신 대기.
+
+## 6. 남는 위험
 
 - 3.0 은 beta. `isaaclab==3.0.0-beta2.patch1` 로 핀하고 올릴 때만 의도적으로 올린다.
 - 쿼터니언은 틀려도 에러가 없다. GPU 첫 실행에서 `WARN_ON_TORCH_QUATF_ACCESS=1` 로 전수 확인하고,

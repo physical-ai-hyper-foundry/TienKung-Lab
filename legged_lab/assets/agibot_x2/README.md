@@ -17,7 +17,7 @@ repository's BSD-3-Clause license.
 | `mjcf/x2_ultra.xml` | upstream, unmodified (sim2sim) |
 | `meshes/` | upstream, git-ignored (~90 MB) |
 | `urdf/x2_ultra_locked20.urdf` | generated — waist/neck/wrist fixed, mesh paths repointed |
-| `usd/x2_ultra_locked20.usd` | generated — not committed, see below |
+| `usd/x2_ultra_locked20/x2_ultra_locked20.usda` | generated — not committed, see below |
 | `agibot_x2.py` | `AGIBOT_X2_CFG` articulation config |
 
 ## Regenerating
@@ -26,14 +26,18 @@ repository's BSD-3-Clause license.
 # 1. Fetch upstream files and write the 20-DoF URDF (needs network).
 python legged_lab/scripts/prepare_agibot_x2.py
 
-# 2. Convert to USD. Requires Isaac Lab -- run this on the training machine.
-#    Flags follow legged_lab/assets/agibot_x2/usd/config.yaml; adjust the script
-#    path to your Isaac Lab version.
+# 2. Convert to USD. Requires Isaac Lab 3.0 (Isaac Sim 6.0) -- run this on the training machine.
+#    The 3.0 importer takes an output *directory* and writes <dir>/<urdf-stem>/<urdf-stem>.usda,
+#    i.e. usd/x2_ultra_locked20/x2_ultra_locked20.usda, which is what AGIBOT_X2_CFG.usd_path expects.
 cd <path-to-IsaacLab>
 ./isaaclab.sh -p scripts/tools/convert_urdf.py \
     <path-to-TienKung-Lab>/legged_lab/assets/agibot_x2/urdf/x2_ultra_locked20.urdf \
-    <path-to-TienKung-Lab>/legged_lab/assets/agibot_x2/usd/x2_ultra_locked20.usd \
+    <path-to-TienKung-Lab>/legged_lab/assets/agibot_x2/usd \
     --merge-joints --joint-stiffness 0.0 --joint-damping 0.0 --joint-target-type none
+
+# 3. Record the resulting body/joint order on first use and compare it with the prediction in
+#    docs/plan/2026-09-15-agibot-x2-port.md (the 3.0 importer was rewritten; merge_fixed_joints is
+#    now a URDF pre-processing step).
 ```
 
 ## Joint budget

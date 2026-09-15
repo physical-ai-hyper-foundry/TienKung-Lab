@@ -26,7 +26,7 @@ from legged_lab.assets import ISAAC_ASSET_DIR
 
 AGIBOT_X2_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAAC_ASSET_DIR}/agibot_x2/usd/x2_ultra_locked20.usd",
+        usd_path=f"{ISAAC_ASSET_DIR}/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20.usda",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
