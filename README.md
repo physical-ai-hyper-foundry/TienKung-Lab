@@ -110,8 +110,12 @@ Launch training with livestreaming bound to the same IP, then open `http://<trai
 Chromium browser:
 
 ```bash
-PUBLIC_IP=<training-machine-ip> python legged_lab/scripts/train.py --task=x2_walk --livestream 1 --viz kit
+PUBLIC_IP=<training-machine-ip> python legged_lab/scripts/train.py --task=x2_walk --livestream 1 --viz kit \
+    --kit_args "--/app/window/hideUi=1 --/persistent/app/viewport/displayOptions=0"
 ```
+
+The two Kit arguments strip the stream down to the viewport: `hideUi` removes the menu bar and docked panels and
+`displayOptions=0` turns off the viewport HUD.
 
 `--livestream 1` forces headless mode, enables `omni.kit.livestream.app` and listens on TCP 49100 (signalling) and
 UDP 47998 (media); training keeps running whether or not a viewer is attached. `--livestream 2` binds to
