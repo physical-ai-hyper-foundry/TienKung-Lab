@@ -22,7 +22,7 @@ from dataclasses import MISSING
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
-from isaaclab_rl.rsl_rl import (  # noqa:F401
+from legged_lab.utils.rsl_rl_cfg import (  # noqa:F401
     RslRlOnPolicyRunnerCfg,
     RslRlPpoActorCriticCfg,
     RslRlPpoAlgorithmCfg,

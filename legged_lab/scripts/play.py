@@ -47,7 +47,7 @@ if "sensor" in args_cli.task:
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-from isaaclab_rl.rsl_rl import export_policy_as_jit, export_policy_as_onnx
+from legged_lab.utils.exporter import export_policy_as_jit, export_policy_as_onnx
 from isaaclab_tasks.utils import get_checkpoint_path
 
 from legged_lab.envs import *  # noqa:F401, F403
