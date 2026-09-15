@@ -45,14 +45,13 @@ Blackwell GPUs supported). The 4.5.0 / 2.1.0 combination the project started on 
 see `docs/decisions/2026-09-15-adr-001-move-to-isaac-sim-6-isaac-lab-3.md` for why.
 
 - Install Isaac Lab 3.0 by following the [installation guide](https://isaac-sim.github.io/IsaacLab/main/source/setup/installation/index.html).
-  This repository was migrated against the `v3.0.0-beta2.patch1` release; if the `isaaclab` package on the index has
-  moved past it, install Isaac Lab from a source checkout of that tag instead.
+  This repository was migrated against the `v3.0.0-beta2.patch1` release, published on the index as `3.0.0b2.post1`:
 
 ```bash
 uv venv --python 3.12 && source .venv/bin/activate
 uv pip install "isaacsim[all,extscache]==6.0.1.0" --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match --prerelease=allow
 uv pip install -U torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cu128
-uv pip install "isaaclab[isaacsim,all]" --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match --prerelease=allow
+uv pip install "isaaclab[isaacsim,all]==3.0.0b2.post1" --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match --prerelease=allow
 ```
 
 - Clone this repository separately from the Isaac Lab installation (i.e. outside the `IsaacLab` directory)
