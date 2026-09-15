@@ -99,8 +99,11 @@ docker build --network host \
     --build-arg ISAACSIM_HOST=<training-machine-ip> \
     --build-arg ISAACSIM_SIGNAL_PORT=49100 --build-arg ISAACSIM_STREAM_PORT=47998 \
     -t isaacsim-web-viewer:6.0 <path-to-IsaacSim>/tools/docker/web-viewer
-docker run -d --name isaacsim-web-viewer --network host --restart unless-stopped \
-    isaacsim-web-viewer:6.0 npx vite preview --host --port 8210
+# The stock viewer calls crypto.randomUUID, which browsers only expose on HTTPS/localhost origins; when the
+# page is opened as http://<ip>:8210 the stream dies with "crypto.randomUUID is not a function". This derived
+# image injects a polyfill (tools/web-viewer/).
+docker build -f tools/web-viewer/Dockerfile.polyfill -t isaacsim-web-viewer:6.0-lan tools/web-viewer
+docker run -d --name isaacsim-web-viewer --network host --restart unless-stopped isaacsim-web-viewer:6.0-lan
 ```
 
 Launch training with livestreaming bound to the same IP, then open `http://<training-machine-ip>:8210` in a

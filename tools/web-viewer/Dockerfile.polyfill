@@ -1,0 +1,7 @@
+FROM isaacsim-web-viewer:6.0
+USER root
+COPY --chmod=644 polyfill.js /app/dist/polyfill.js
+RUN grep -q "<head" /app/dist/index.html \
+    && sed -i 's|<head\([^>]*\)>|<head\1><script src="/polyfill.js"></script>|' /app/dist/index.html \
+    && grep -q 'polyfill.js' /app/dist/index.html
+USER appuser
