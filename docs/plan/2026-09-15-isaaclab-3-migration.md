@@ -93,6 +93,7 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
   컨테이너 안에서 학습을 돌려야 하는지는 GPU 머신에서 확인한다. 후자가 문서 기준 경로다.
 - 한 인스턴스에 한 클라이언트만 붙는다. "사용자가 클릭하면 보여준다"는 UX 는 뷰어 URL 을 여는 것으로
   구현하고, 스트림 자체는 학습 시작 시 항상 켜 둔다.
+- (검증 후) 학습 프로세스는 네이티브로 두고 뷰어 컨테이너만 붙이면 된다. 5절 참조.
 
 ## 5. 진행 상태 (2026-09-15)
 
@@ -116,15 +117,16 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
   경고 8곳은 모두 sim 쿼터니언을 3.0 `quat_*` 함수에 그대로 넘기는 곳으로, 순서 가정이 없다.
 - TienKung `walk` 64 env 3 iter: 정상. 회귀: 2.1 에서 학습한 `Exported_policy/walk.pt` 를 3.0 env 에서
   400 step 실행 → 낙상 0/64 (무작위 정책은 3~46 step 에 종료). 관측 파이프라인·쿼터니언 순서 일치로 판정.
-- 브라우저 스트리밍: `--livestream 2` 로 학습을 띄우면 `omni.kit.livestream.{core,webrtc,app}` 이 기동되고
-  시그널링 포트 49100 이 열리며 학습이 계속된다(64 env 렌더 포함 GPU 4.3 GB / 30 %). 웹 뷰어 컨테이너 연결은
-  NGC 로그인이 필요해 아직 미검증.
+- 브라우저 스트리밍: 웹 뷰어는 IsaacSim 레포 `tools/docker/web-viewer/Dockerfile` 로 로컬 빌드된다(공개
+  base 이미지, NGC 로그인 불필요). 개발 PC 에서 `ISAACSIM_HOST=192.168.0.6` 으로 빌드해 host network 로
+  8210 에 띄웠고, 학습은 `PUBLIC_IP=192.168.0.6 --livestream 1` 로 실행. 맥에서 8210(HTTP 200)·49100 도달
+  확인. 4096 env + 렌더로 GPU 10.8 GB / 3 s/iter. 브라우저에서 영상이 실제로 뜨는지는 사용자 클릭으로 확인.
 
 ## 6. 남는 위험
 
 - 3.0 은 beta. `isaaclab==3.0.0b2.post1` 로 핀하고 올릴 때만 의도적으로 올린다.
 - `flatten_usd.py` 는 임시 조치다. #6378 이 포함된 릴리스로 올리면 스크립트와 `_flat.usd` 를 제거하고
   `AGIBOT_X2_CFG.usd_path` 를 임포터 원본(`x2_ultra_locked20.usda`)으로 되돌린다.
-- 웹 뷰어(Docker Compose, 포트 8210) 연결과 "학습 프로세스 네이티브 + 뷰어 컨테이너만" 구성이 되는지는
-  NGC 로그인 뒤 확인한다.
+- "학습 프로세스 네이티브 + 뷰어 컨테이너만" 구성은 성립한다(compose 의 isaac-sim 서비스 없이 web-viewer 만).
+  뷰어는 빌드 시점에 호스트 IP 를 굽기 때문에 IP 가 바뀌면 재빌드해야 한다.
 - with_sensor 변형(카메라·라이다·높이맵)은 미검증.

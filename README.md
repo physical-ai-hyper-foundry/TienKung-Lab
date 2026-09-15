@@ -89,18 +89,30 @@ python legged_lab/scripts/train.py --task=walk  --logger=tensorboard --num_envs=
 
 ### Browser streaming of a training run
 
-Isaac Sim 6.0 ships a browser (WebRTC) viewer that is deployed with Docker Compose on an Ubuntu host
-([livestream docs](https://docs.isaacsim.omniverse.nvidia.com/6.0.0/installation/manual_livestream_clients.html)).
-Launch the training process with livestreaming enabled and open the viewer URL (port 8210) in a Chromium browser:
+Isaac Sim 6.0 streams over WebRTC to a browser viewer that is built from the
+[Isaac Sim repository](https://github.com/isaac-sim/IsaacSim) (`tools/docker/web-viewer/Dockerfile`, Ubuntu hosts
+only, no NGC login needed). Build it once on the training machine with that machine's LAN IP baked in, and run it
+on port 8210:
 
 ```bash
-python legged_lab/scripts/train.py --task=x2_walk --livestream 2
+docker build --network host \
+    --build-arg ISAACSIM_HOST=<training-machine-ip> \
+    --build-arg ISAACSIM_SIGNAL_PORT=49100 --build-arg ISAACSIM_STREAM_PORT=47998 \
+    -t isaacsim-web-viewer:6.0 <path-to-IsaacSim>/tools/docker/web-viewer
+docker run -d --name isaacsim-web-viewer --network host --restart unless-stopped \
+    isaacsim-web-viewer:6.0 npx vite preview --host --port 8210
 ```
 
-`--livestream 2` (private WebRTC) forces headless mode, enables `omni.kit.livestream.app` and listens for the
-signalling connection on port 49100; training keeps running while the stream is up. The web viewer itself is
-a separate Docker Compose deployment from NGC (requires `docker login nvcr.io`). Only one client can attach to
-an Isaac Sim instance at a time.
+Launch training with livestreaming bound to the same IP, then open `http://<training-machine-ip>:8210` in a
+Chromium browser:
+
+```bash
+PUBLIC_IP=<training-machine-ip> python legged_lab/scripts/train.py --task=x2_walk --livestream 1
+```
+
+`--livestream 1` forces headless mode, enables `omni.kit.livestream.app` and listens on TCP 49100 (signalling) and
+UDP 47998 (media); training keeps running whether or not a viewer is attached. `--livestream 2` binds to
+127.0.0.1 only, for a viewer on the same machine. One client can attach to an Isaac Sim instance at a time.
 
 ## Usage
 
