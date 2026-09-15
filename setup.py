@@ -16,9 +16,7 @@
 # with additional modifications by the TienKung-Lab Project,
 # and is distributed under the BSD-3-Clause license.
 
-from distutils.core import setup
-
-from setuptools import find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="LeggedLab",

@@ -150,7 +150,7 @@ class AMPLoader:
         """Returns frame for the given trajectory at the specified time."""
         p = times / self.trajectory_lens[traj_idxs]
         n = self.trajectory_num_frames[traj_idxs]
-        idx_low, idx_high = np.floor(p * n).astype(np.int), np.ceil(p * n).astype(np.int)
+        idx_low, idx_high = np.floor(p * n).astype(int), np.ceil(p * n).astype(int)
         all_frame_starts = torch.zeros(len(traj_idxs), self.observation_dim, device=self.device)
         all_frame_ends = torch.zeros(len(traj_idxs), self.observation_dim, device=self.device)
         for traj_idx in set(traj_idxs):
