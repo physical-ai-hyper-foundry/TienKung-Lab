@@ -1,0 +1,14 @@
+{
+  "name": "demo-capture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright capture harness for RL fake pages (screenshots + flow videos)",
+  "scripts": {
+    "shot": "node shot.mjs",
+    "flow": "node flow.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

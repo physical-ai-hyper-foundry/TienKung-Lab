@@ -1,0 +1,13 @@
+{
+  "name": "viewer-only",
+  "tail": 200,
+  "steps": [
+    { "goto": "http://localhost:5173/library/projects/logistics/tasks/x2-walk/trainings/request?demo=created", "pause": 0 },
+    { "wait": 5000 },
+    { "hover": "model-viewer", "pause": 0 },
+    { "drag": "model-viewer", "dx": 240, "dy": 0, "steps": 30, "pause": 1000 },
+    { "drag": "model-viewer", "dx": -160, "dy": 0, "steps": 30, "pause": 1000 },
+    { "wheel": "model-viewer", "deltaY": -600, "steps": 6, "pause": 1500 },
+    { "wheel": "model-viewer", "deltaY": 600, "steps": 6, "pause": 3000 }
+  ]
+}

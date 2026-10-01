@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Fixture B</title>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #fff; color: #111; }
+  header { background: #7a3cc3; color: #fff; padding: 20px 40px; font-size: 22px; }
+  main { padding: 40px; }
+  button { font-size: 16px; padding: 10px 18px; border-radius: 8px; border: 0; background: #7a3cc3; color: #fff; cursor: pointer; }
+  #ticker { font-size: 28px; font-variant-numeric: tabular-nums; margin: 24px 0; }
+</style></head>
+<body>
+<header>Fixture B · 학습 요청</header>
+<main>
+  <div id="ticker">step 0</div>
+  <button id="req">학습 요청</button>
+  <p id="done"></p>
+  <p><a href="#section2">SPA 내비게이션 (hash)</a></p>
+</main>
+<script>
+  let n = 0; setInterval(() => { document.getElementById('ticker').textContent = 'step ' + (n += 1200).toLocaleString(); }, 1000);
+  document.getElementById('req').onclick = () => {
+    history.pushState({}, '', '?run_id=x2_walk_20260915');
+    document.querySelector('main').innerHTML = '<h2>학습 실행 현황</h2><p id="done">x2_walk_20260915 학습 중</p><button>실시간 학습 화면</button>';
+  };
+  window.__demo = { finishRun() { document.body.style.background = '#e9f7ee'; } };
+</script>
+</body></html>

@@ -9,3 +9,6 @@ MUJOCO_LOG.TXT
 .history
 legged_lab/assets/agibot_x2/meshes
 legged_lab/assets/agibot_x2/usd/
+
+# demo capture harness (Playwright)
+tools/demo/capture/node_modules/

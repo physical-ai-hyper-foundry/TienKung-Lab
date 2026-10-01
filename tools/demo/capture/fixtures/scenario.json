@@ -1,0 +1,23 @@
+{
+  "name": "fixture-flow",
+  "steps": [
+    { "goto": "http://localhost:8173/a.html" },
+    { "screenshot": "fixture-a.png" },
+    { "click": { "role": "button", "name": "새 작업" } },
+    { "fill": { "placeholder": "예: X2 평지 보행" }, "value": "X2 평지 보행" },
+    { "scroll": 700 },
+    { "newTab": { "text": "Model Studio 에서 열기" } },
+    { "hover": { "text": "학습 요청" } },
+    { "click": { "role": "button", "name": "학습 요청" } },
+    { "waitFor": { "text": "x2_walk_20260915 학습 중" } },
+    { "click": { "text": "실시간 학습 화면" } },
+    { "evaluate": "window.__demo.finishRun()" },
+    { "screenshot": "fixture-b.png" },
+    { "switchTab": 0 },
+    { "scroll": { "to": { "role": "button", "name": "새 작업" } } },
+    { "newTab": "http://127.0.0.1:8174/b.html" },
+    { "click": { "role": "button", "name": "학습 요청" } },
+    { "switchTab": "8173/a.html" },
+    { "wait": 500 }
+  ]
+}

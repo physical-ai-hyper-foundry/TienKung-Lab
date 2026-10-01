@@ -1,0 +1,196 @@
+{
+  "name": "rl-flow",
+  "pause": 700,
+  "steps": [
+    {
+      "goto": "http://localhost:5173/library/projects/logistics/tasks"
+    },
+    {
+      "wait": 800
+    },
+    {
+      "click": {
+        "role": "button",
+        "name": "새 작업"
+      }
+    },
+    {
+      "click": {
+        "text": "강화학습",
+        "exact": true
+      }
+    },
+    {
+      "fill": {
+        "placeholder": "작업 이름을 입력해주세요"
+      },
+      "value": "X2 평지 보행"
+    },
+    {
+      "click": ".ant-select:has-text(\"작업 유형을 선택\")",
+      "pause": 400
+    },
+    {
+      "click": ".ant-select-item-option:has-text(\"보행\")"
+    },
+    {
+      "fill": {
+        "placeholder": "작업의 목적"
+      },
+      "value": "속도 명령을 따라 평지를 걷는 보행 정책. 시뮬레이션에서만 학습한다.",
+      "typeDelay": 35
+    },
+    {
+      "click": ".ant-select:has-text(\"로봇 모델을 선택\")",
+      "pause": 400
+    },
+    {
+      "click": ".ant-select-item-option:has-text(\"AgiBot / X2 Ultra\")"
+    },
+    {
+      "click": {
+        "role": "button",
+        "name": "작업 만들기"
+      }
+    },
+    {
+      "waitFor": {
+        "text": "X2 평지 보행",
+        "exact": true
+      }
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "click": {
+        "text": "X2 평지 보행",
+        "exact": true
+      }
+    },
+    {
+      "wait": 1000
+    },
+    {
+      "click": {
+        "text": "학습 요청",
+        "exact": true,
+        "nth": 0
+      }
+    },
+    {
+      "wait": 3000
+    },
+    {
+      "drag": "model-viewer",
+      "dx": 240,
+      "dy": 0,
+      "steps": 30,
+      "pause": 1000
+    },
+    {
+      "wheel": "model-viewer",
+      "deltaY": -600,
+      "steps": 6,
+      "pause": 1500
+    },
+    {
+      "wheel": "model-viewer",
+      "deltaY": 600,
+      "steps": 6,
+      "pause": 1000
+    },
+    {
+      "click": ".ant-select:has-text(\"평지 걷기\")",
+      "pause": 1200
+    },
+    {
+      "click": ".ant-select:has-text(\"평지 걷기\")"
+    },
+    {
+      "newTab": {
+        "role": "button",
+        "name": "학습 요청"
+      }
+    },
+    {
+      "scroll": 400,
+      "step": 8,
+      "pause": 2000
+    },
+    {
+      "scroll": -400,
+      "step": 12
+    },
+    {
+      "click": {
+        "role": "button",
+        "name": "학습 요청"
+      }
+    },
+    {
+      "waitFor": {
+        "role": "button",
+        "name": "실시간 학습 화면"
+      }
+    },
+    {
+      "wait": 3000
+    },
+    {
+      "click": {
+        "role": "button",
+        "name": "실시간 학습 화면"
+      }
+    },
+    {
+      "wait": 6000
+    },
+    {
+      "click": "button.text-app-muted.hover\\:text-app-text"
+    },
+    {
+      "switchTab": "5173"
+    },
+    {
+      "evaluate": "window.__demo.finishRun()"
+    },
+    {
+      "click": {
+        "text": "학습 관리",
+        "exact": true,
+        "nth": 0
+      }
+    },
+    {
+      "waitFor": {
+        "text": "학습 완료"
+      }
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "click": {
+        "text": "x2_walk_20260915",
+        "exact": true
+      }
+    },
+    {
+      "wait": 1000
+    },
+    {
+      "click": "video"
+    },
+    {
+      "wait": 3000
+    },
+    {
+      "scroll": 1400,
+      "step": 10
+    },
+    {
+      "wait": 2000
+    }
+  ]
+}
