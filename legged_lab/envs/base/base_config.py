@@ -18,6 +18,7 @@
 
 import math
 from dataclasses import MISSING
+from typing import Literal
 
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -241,4 +242,9 @@ class PhysxCfg:
 class SimCfg:
     dt: float = 0.005
     decimation: int = 4
+    physics_backend: Literal["physx", "newton"] = "physx"
+    """Physics backend. ``"newton"`` runs the Newton backend with the MuJoCo-Warp solver."""
+    newton_contacts: Literal["newton", "mujoco"] = "newton"
+    """Collision detection under the Newton backend: Newton's own pipeline (Isaac Lab default) or MuJoCo's
+    (``use_mujoco_contacts=True``), which is closer to plain MuJoCo for sim2sim."""
     physx: PhysxCfg = PhysxCfg()

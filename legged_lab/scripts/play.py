@@ -33,6 +33,13 @@ parser = argparse.ArgumentParser(description="Train an RL agent with RSL-RL.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
+parser.add_argument(
+    "--physics", type=str, default=None, choices=["physx", "newton"], help="Physics backend (default: task config)."
+)
+parser.add_argument(
+    "--newton_contacts", type=str, default=None, choices=["newton", "mujoco"],
+    help="Collision detection under the Newton backend (default: task config).",
+)
 
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -82,6 +89,10 @@ def play():
 
     if args_cli.num_envs is not None:
         env_cfg.scene.num_envs = args_cli.num_envs
+    if args_cli.physics is not None:
+        env_cfg.sim.physics_backend = args_cli.physics
+    if args_cli.newton_contacts is not None:
+        env_cfg.sim.newton_contacts = args_cli.newton_contacts
 
     agent_cfg = update_rsl_rl_cfg(agent_cfg, args_cli)
     env_cfg.scene.seed = agent_cfg.seed

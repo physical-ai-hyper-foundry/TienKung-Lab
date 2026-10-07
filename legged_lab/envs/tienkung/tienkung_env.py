@@ -30,7 +30,6 @@ from isaaclab.sim import SimulationContext
 from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
 from isaaclab.utils.math import quat_apply, quat_conjugate, quat_rotate
 from isaaclab.utils.seed import configure_seed
-from isaaclab_physx.physics import PhysxCfg
 from scipy.spatial.transform import Rotation
 
 from legged_lab.envs.agibot_x2.walk_cfg import AgiBotX2WalkFlatEnvCfg
@@ -39,6 +38,12 @@ from legged_lab.envs.tienkung.run_with_sensor_cfg import TienKungRunWithSensorFl
 from legged_lab.envs.tienkung.walk_cfg import TienKungWalkFlatEnvCfg
 from legged_lab.envs.tienkung.walk_with_sensor_cfg import (
     TienKungWalkWithSensorFlatEnvCfg,
+)
+from legged_lab.utils.env_utils.physics import (
+    make_ground_material_cfg,
+    make_physics_cfg,
+    sanitize_newton_worlds,
+    use_newton_actuators,
 )
 from legged_lab.utils.env_utils.scene import SceneCfg
 from rsl_rl.env import VecEnv
@@ -77,17 +82,13 @@ class TienKungEnv(VecEnv):
             device=cfg.device,
             dt=cfg.sim.dt,
             render_interval=cfg.sim.decimation,
-            physics=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                friction_combine_mode="multiply",
-                restitution_combine_mode="multiply",
-                static_friction=1.0,
-                dynamic_friction=1.0,
-            ),
+            physics=make_physics_cfg(cfg.sim),
+            physics_material=make_ground_material_cfg(cfg.sim),
+            use_newton_actuators=use_newton_actuators(cfg.sim),
         )
         self.sim = SimulationContext(sim_cfg)
 
-        scene_cfg = SceneCfg(config=cfg.scene, physics_dt=self.physics_dt, step_dt=self.step_dt)
+        scene_cfg = SceneCfg(config=cfg.scene, physics_dt=self.physics_dt, step_dt=self.step_dt, sim_cfg=cfg.sim)
         self.scene = InteractiveScene(scene_cfg)
         self.sim.reset()
 
@@ -179,6 +180,8 @@ class TienKungEnv(VecEnv):
         self.episode_length_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.sim_step_counter = 0
         self.time_out_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.nonfinite_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.nonfinite_resets = 0
 
         hand_offset = torch.tensor(self.cfg.robot.hand_local_offset, device=self.device)
         self.left_arm_local_vec = hand_offset.repeat((self.num_envs, 1))
@@ -325,7 +328,9 @@ class TienKungEnv(VecEnv):
         joint_pos = robot.data.joint_pos.torch - robot.data.default_joint_pos.torch
         joint_vel = robot.data.joint_vel.torch - robot.data.default_joint_vel.torch
         action = self.action_buffer._circular_buffer.buffer[:, -1, :]
-        root_lin_vel = robot.data.root_lin_vel_b.torch
+        # Critic-only term: MuJoCo-Warp can emit a huge but finite root velocity for one env during a hard contact,
+        # which would blow up the value loss (and, via NaN gradients, the policy std). Clip it to a physical range.
+        root_lin_vel = torch.clamp(robot.data.root_lin_vel_b.torch, -10.0, 10.0)
         feet_contact = torch.max(torch.norm(net_contact_forces[:, :, self.feet_cfg.body_ids], dim=-1), dim=1)[0] > 0.5
 
         current_actor_obs = torch.cat(
@@ -348,6 +353,12 @@ class TienKungEnv(VecEnv):
 
     def compute_observations(self):
         current_actor_obs, current_critic_obs = self.compute_current_observations()
+        if self.nonfinite_buf.any():
+            # the readback of a world that was just sanitized + reset is still non-finite on this step; the env has
+            # been reset anyway, so hand the policy a zero frame instead of NaN (which would come back as NaN actions)
+            mask = self.nonfinite_buf.unsqueeze(1)
+            current_actor_obs = torch.where(mask, torch.zeros_like(current_actor_obs), current_actor_obs)
+            current_critic_obs = torch.where(mask, torch.zeros_like(current_critic_obs), current_critic_obs)
         if self.add_noise:
             current_actor_obs += (2 * torch.rand_like(current_actor_obs) - 1) * self.noise_scale_vec
 
@@ -459,7 +470,16 @@ class TienKungEnv(VecEnv):
 
         self.reset_buf, self.time_out_buf = self.check_reset()
         reward_buf = self.reward_manager.compute(self.step_dt)
+        bad_reward = ~torch.isfinite(reward_buf)
+        if bad_reward.any():
+            print(f"[WARN] non-finite reward in {int(bad_reward.sum())} env(s) (state guard missed it), zeroing")
+        if self.nonfinite_buf.any() or bad_reward.any():
+            reward_buf = torch.where(self.nonfinite_buf | bad_reward, torch.zeros_like(reward_buf), reward_buf)
         self.reset_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if self.nonfinite_buf.any() and self.cfg.sim.physics_backend == "newton":
+            # zero the poisoned solver buffers first so that reset() + forward() rebuild the world from finite state
+            cleaned = sanitize_newton_worlds(self.nonfinite_buf.nonzero(as_tuple=False).flatten())
+            print(f"[WARN] sanitized solver buffers before non-finite reset: {cleaned}")
         self.reset(self.reset_env_ids)
 
         actor_obs, critic_obs = self.compute_observations()
@@ -483,6 +503,35 @@ class TienKungEnv(VecEnv):
         )
         time_out_buf = self.episode_length_buf >= self.max_episode_length
         reset_buf |= time_out_buf
+        # A solver blow-up (seen with MuJoCo-Warp: ~1 env in 512 within 6 s) leaves an env with NaN state. NaN never
+        # trips the contact test above, so without this the env would stay alive and poison every PPO batch
+        # (the 2026-09-21 newton_mjc run skipped every update from iteration 2). Reset it like a fall.
+        d = self.robot.data
+        self.nonfinite_buf = ~torch.stack(
+            [
+                torch.isfinite(x.torch).reshape(self.num_envs, -1).all(dim=1)
+                for x in (d.root_link_pos_w, d.root_link_quat_w, d.root_lin_vel_w, d.root_ang_vel_w, d.joint_pos, d.joint_vel)
+            ]
+        ).all(dim=0)
+        # A world usually passes through absurd but still finite values on its way to NaN; those reach the rewards
+        # and AMP observations unclipped and turn the gradient norm to inf, so treat them like non-finite state.
+        blown = (
+            (d.root_lin_vel_w.torch.norm(dim=1) > 50.0)
+            | (d.root_ang_vel_w.torch.norm(dim=1) > 200.0)
+            | (d.joint_vel.torch.abs().amax(dim=1) > 1000.0)
+            | (d.root_link_pos_w.torch.abs().amax(dim=1) > 1.0e4)
+        )
+        if blown.any():
+            i = int(blown.nonzero()[0])
+            print(
+                f"[WARN] blown-up state in {int(blown.sum())} env(s): env {i} |v|={float(d.root_lin_vel_w.torch[i].norm()):.3g}"
+                f" |w|={float(d.root_ang_vel_w.torch[i].norm()):.3g} max|qd|={float(d.joint_vel.torch[i].abs().max()):.3g}"
+            )
+            self.nonfinite_buf |= blown
+        if self.nonfinite_buf.any():
+            self.nonfinite_resets += int(self.nonfinite_buf.sum())
+            print(f"[WARN] non-finite state in {int(self.nonfinite_buf.sum())} env(s), resetting (total {self.nonfinite_resets})")
+            reset_buf |= self.nonfinite_buf
         return reset_buf, time_out_buf
 
     def init_obs_buffer(self):
@@ -567,7 +616,7 @@ class TienKungEnv(VecEnv):
         self.right_arm_dof_pos = self.robot.data.joint_pos.torch[:, self.right_arm_ids]
         self.left_arm_dof_vel = self.robot.data.joint_vel.torch[:, self.left_arm_ids]
         self.right_arm_dof_vel = self.robot.data.joint_vel.torch[:, self.right_arm_ids]
-        return torch.cat(
+        amp_obs = torch.cat(
             (
                 self.right_arm_dof_pos,
                 self.left_arm_dof_pos,
@@ -584,6 +633,9 @@ class TienKungEnv(VecEnv):
             ),
             dim=-1,
         )
+        if self.nonfinite_buf.any():
+            amp_obs = torch.where(self.nonfinite_buf.unsqueeze(1), torch.zeros_like(amp_obs), amp_obs)
+        return amp_obs
 
     @staticmethod
     def seed(seed: int = -1) -> int:

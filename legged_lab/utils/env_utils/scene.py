@@ -28,8 +28,10 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 
 from legged_lab.sensors.camera import TiledCameraCfg
 from legged_lab.terrains.ray_caster_cfg import RayCasterCfg
+from legged_lab.utils.env_utils.physics import contact_force_threshold, make_ground_material_cfg
 
 if TYPE_CHECKING:
+    from legged_lab.envs.base.base_config import SimCfg
     from legged_lab.envs.base.base_env_config import BaseSceneCfg
 
 
@@ -37,7 +39,7 @@ if TYPE_CHECKING:
 class SceneCfg(InteractiveSceneCfg):
     """Configuration for a cart-pole scene."""
 
-    def __init__(self, config: "BaseSceneCfg", physics_dt, step_dt):
+    def __init__(self, config: "BaseSceneCfg", physics_dt, step_dt, sim_cfg: "SimCfg"):
         super().__init__(num_envs=config.num_envs, env_spacing=config.env_spacing)
 
         self.terrain = TerrainImporterCfg(
@@ -46,12 +48,7 @@ class SceneCfg(InteractiveSceneCfg):
             terrain_generator=config.terrain_generator,
             max_init_terrain_level=config.max_init_terrain_level,
             collision_group=-1,
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                friction_combine_mode="multiply",
-                restitution_combine_mode="multiply",
-                static_friction=1.0,
-                dynamic_friction=1.0,
-            ),
+            physics_material=make_ground_material_cfg(sim_cfg),
             visual_material=sim_utils.MdlFileCfg(
                 mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
                 project_uvw=True,
@@ -63,7 +60,11 @@ class SceneCfg(InteractiveSceneCfg):
         self.robot: ArticulationCfg = config.robot.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         self.contact_sensor = ContactSensorCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/.*", history_length=3, track_air_time=True, update_period=physics_dt
+            prim_path="{ENV_REGEX_NS}/Robot/.*",
+            history_length=3,
+            track_air_time=True,
+            update_period=physics_dt,
+            force_threshold=contact_force_threshold(sim_cfg),
         )
 
         self.light = AssetBaseCfg(

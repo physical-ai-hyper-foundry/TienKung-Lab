@@ -28,9 +28,14 @@ from isaaclab.sensors import ContactSensor, RayCaster
 from isaaclab.sim import SimulationContext
 from isaaclab.utils.buffers import CircularBuffer, DelayBuffer
 from isaaclab.utils.seed import configure_seed
-from isaaclab_physx.physics import PhysxCfg
 
 from legged_lab.envs.base.base_env_config import BaseEnvCfg
+from legged_lab.utils.env_utils.physics import (
+    make_ground_material_cfg,
+    make_physics_cfg,
+    sanitize_newton_worlds,
+    use_newton_actuators,
+)
 from legged_lab.utils.env_utils.scene import SceneCfg
 from rsl_rl.env import VecEnv
 
@@ -51,17 +56,13 @@ class BaseEnv(VecEnv):
             device=cfg.device,
             dt=cfg.sim.dt,
             render_interval=cfg.sim.decimation,
-            physics=PhysxCfg(gpu_max_rigid_patch_count=cfg.sim.physx.gpu_max_rigid_patch_count),
-            physics_material=sim_utils.RigidBodyMaterialCfg(
-                friction_combine_mode="multiply",
-                restitution_combine_mode="multiply",
-                static_friction=1.0,
-                dynamic_friction=1.0,
-            ),
+            physics=make_physics_cfg(cfg.sim),
+            physics_material=make_ground_material_cfg(cfg.sim),
+            use_newton_actuators=use_newton_actuators(cfg.sim),
         )
         self.sim = SimulationContext(sim_cfg)
 
-        scene_cfg = SceneCfg(config=cfg.scene, physics_dt=self.physics_dt, step_dt=self.step_dt)
+        scene_cfg = SceneCfg(config=cfg.scene, physics_dt=self.physics_dt, step_dt=self.step_dt, sim_cfg=cfg.sim)
         self.scene = InteractiveScene(scene_cfg)
         self.sim.reset()
 
@@ -132,6 +133,8 @@ class BaseEnv(VecEnv):
         self.episode_length_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.long)
         self.sim_step_counter = 0
         self.time_out_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.nonfinite_buf = torch.zeros(self.num_envs, device=self.device, dtype=torch.bool)
+        self.nonfinite_resets = 0
         self.init_obs_buffer()
 
     def compute_current_observations(self):
@@ -166,6 +169,12 @@ class BaseEnv(VecEnv):
 
     def compute_observations(self):
         current_actor_obs, current_critic_obs = self.compute_current_observations()
+        if self.nonfinite_buf.any():
+            # the readback of a world that was just sanitized + reset is still non-finite on this step; the env has
+            # been reset anyway, so hand the policy a zero frame instead of NaN (which would come back as NaN actions)
+            mask = self.nonfinite_buf.unsqueeze(1)
+            current_actor_obs = torch.where(mask, torch.zeros_like(current_actor_obs), current_actor_obs)
+            current_critic_obs = torch.where(mask, torch.zeros_like(current_critic_obs), current_critic_obs)
         if self.add_noise:
             current_actor_obs += (2 * torch.rand_like(current_actor_obs) - 1) * self.noise_scale_vec
 
@@ -245,7 +254,16 @@ class BaseEnv(VecEnv):
 
         self.reset_buf, self.time_out_buf = self.check_reset()
         reward_buf = self.reward_manager.compute(self.step_dt)
+        bad_reward = ~torch.isfinite(reward_buf)
+        if bad_reward.any():
+            print(f"[WARN] non-finite reward in {int(bad_reward.sum())} env(s) (state guard missed it), zeroing")
+        if self.nonfinite_buf.any() or bad_reward.any():
+            reward_buf = torch.where(self.nonfinite_buf | bad_reward, torch.zeros_like(reward_buf), reward_buf)
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if self.nonfinite_buf.any() and self.cfg.sim.physics_backend == "newton":
+            # zero the poisoned solver buffers first so that reset() + forward() rebuild the world from finite state
+            cleaned = sanitize_newton_worlds(self.nonfinite_buf.nonzero(as_tuple=False).flatten())
+            print(f"[WARN] sanitized solver buffers before non-finite reset: {cleaned}")
         self.reset(env_ids)
 
         actor_obs, critic_obs = self.compute_observations()
@@ -269,6 +287,35 @@ class BaseEnv(VecEnv):
         )
         time_out_buf = self.episode_length_buf >= self.max_episode_length
         reset_buf |= time_out_buf
+        # A solver blow-up (seen with MuJoCo-Warp: ~1 env in 512 within 6 s) leaves an env with NaN state. NaN never
+        # trips the contact test above, so without this the env would stay alive and poison every PPO batch
+        # (the 2026-09-21 newton_mjc run skipped every update from iteration 2). Reset it like a fall.
+        d = self.robot.data
+        self.nonfinite_buf = ~torch.stack(
+            [
+                torch.isfinite(x.torch).reshape(self.num_envs, -1).all(dim=1)
+                for x in (d.root_link_pos_w, d.root_link_quat_w, d.root_lin_vel_w, d.root_ang_vel_w, d.joint_pos, d.joint_vel)
+            ]
+        ).all(dim=0)
+        # A world usually passes through absurd but still finite values on its way to NaN; those reach the rewards
+        # and AMP observations unclipped and turn the gradient norm to inf, so treat them like non-finite state.
+        blown = (
+            (d.root_lin_vel_w.torch.norm(dim=1) > 50.0)
+            | (d.root_ang_vel_w.torch.norm(dim=1) > 200.0)
+            | (d.joint_vel.torch.abs().amax(dim=1) > 1000.0)
+            | (d.root_link_pos_w.torch.abs().amax(dim=1) > 1.0e4)
+        )
+        if blown.any():
+            i = int(blown.nonzero()[0])
+            print(
+                f"[WARN] blown-up state in {int(blown.sum())} env(s): env {i} |v|={float(d.root_lin_vel_w.torch[i].norm()):.3g}"
+                f" |w|={float(d.root_ang_vel_w.torch[i].norm()):.3g} max|qd|={float(d.joint_vel.torch[i].abs().max()):.3g}"
+            )
+            self.nonfinite_buf |= blown
+        if self.nonfinite_buf.any():
+            self.nonfinite_resets += int(self.nonfinite_buf.sum())
+            print(f"[WARN] non-finite state in {int(self.nonfinite_buf.sum())} env(s), resetting (total {self.nonfinite_resets})")
+            reset_buf |= self.nonfinite_buf
         return reset_buf, time_out_buf
 
     def init_obs_buffer(self):
