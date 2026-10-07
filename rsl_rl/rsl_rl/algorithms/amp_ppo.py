@@ -111,6 +111,7 @@ class AMPPPO:
         # Discriminator components
         self.amploss_coef = 1.0
         self.min_std = min_std
+        self.num_skipped_updates = 0
         self.discriminator = discriminator
         self.discriminator.to(self.device)
         self.amp_transition = RolloutStorage.Transition()
@@ -450,8 +451,16 @@ class AMPPPO:
 
             # Apply the gradients
             # -- For PPO
-            nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
-            self.optimizer.step()
+            grad_norm = nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
+            if torch.isfinite(grad_norm):
+                self.optimizer.step()
+            else:
+                # A non-finite loss (solver outlier) must not reach the parameters: one such step drove the
+                # policy std to NaN and killed a 20k-iteration run ("normal expects all elements of std >= 0").
+                self.optimizer.zero_grad()
+                self.num_skipped_updates += 1
+                print(f"[WARN] non-finite gradient norm ({grad_norm.item()}), skipping this optimizer step "
+                      f"(total skipped: {self.num_skipped_updates})")
             # -- For RND
             if self.rnd_optimizer:
                 self.rnd_optimizer.step()
