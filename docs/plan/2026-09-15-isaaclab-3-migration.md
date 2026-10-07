@@ -133,3 +133,60 @@ Isaac Lab `v3.0.0-beta2.patch1` 소스를 받아 이 레포가 import 하는 모
 - "학습 프로세스 네이티브 + 뷰어 컨테이너만" 구성은 성립한다(compose 의 isaac-sim 서비스 없이 web-viewer 만).
   뷰어는 빌드 시점에 호스트 IP 를 굽기 때문에 IP 가 바뀌면 재빌드해야 한다.
 - with_sensor 변형(카메라·라이다·높이맵)은 미검증.
+
+## 7. Newton(MuJoCo-Warp) 백엔드 (2026-09-16 ~ 17)
+
+목적: "MuJoCo 로 학습" 요청. 순수 MuJoCo(CPU, 단일 env) 학습은 비현실적이고 MJX/MuJoCo Playground 는 태스크 전체를
+다시 써야 한다. Isaac Lab 3.0 의 Newton 백엔드가 MuJoCo-Warp 솔버(`MJWarpSolverCfg`)를 GPU 병렬로 돌리므로 이쪽을
+택했다. 환경·보상·러너 코드는 그대로다.
+
+- 변경: `SimCfg.physics_backend: Literal["physx","newton"]`(기본 physx), `legged_lab/utils/env_utils/physics.py`
+  의 `make_physics_cfg()` 가 `PhysxCfg` 또는 `NewtonCfg(MJWarpSolverCfg(njmax=200, nconmax=100, cone=pyramidal,
+  integrator=implicitfast, use_mujoco_contacts=False), collision max_triangle_pairs=2.5M, default_shape margin=0.01)`
+  을 돌려준다(isaaclab_tasks `velocity_env_cfg.RoughPhysicsCfg.newton_mjwarp` 와 동일 값). `BaseEnv` 와
+  `TienKungEnv` 둘 다 이 함수를 쓴다. `train.py` / `play.py` / `record_play.py` / `export_policy.py` 에 `--physics`.
+- **사고(2026-09-17 발견).** 처음에는 분기를 `BaseEnv.__init__` 에만 넣었는데 `x2_walk` 를 포함한 모든 태스크는
+  `TienKungEnv` 로 등록돼 있고 그 클래스가 `SimulationCfg(physics=PhysxCfg(...))` 를 따로 만든다. 그래서 09-16
+  15:17 에 `--physics newton` 으로 시작한 런은 PhysX 로 돌았다. 스모크가 통과해도 백엔드가 바뀌었다는 증거는
+  아니었다. `env.sim.physics_manager.__name__` 을 찍어 확인하는 스크립트(`~/smoke/check_backend.py`)로 잡았고,
+  런 디렉토리는 `2026-09-16_15-17-02_physx-run2` 로 이름을 바꿨다. 교훈: 백엔드 전환은 로그가 아니라 매니저
+  클래스 이름으로 검증한다.
+- 왜 그대로 도는가: 3.0 의 `isaaclab.sensors.ContactSensorCfg` 는 백엔드 팩토리라 Newton 접촉 센서로 자동 분기하고,
+  레포가 쓰는 데이터 속성(`net_forces_w_history`, `current_air_time`, `applied_torque`, `joint_acc`, `body_*_w`,
+  `root_link_*`)은 Newton `ArticulationData` 에 모두 있다. `randomize_rigid_body_mass`(set_masses) / material /
+  `push_by_setting_velocity` 도 지원. 미지원은 tendon 계열과 gravity compensation 뿐.
+- 의존성: `newton[sim] 1.2.1` 은 `mujoco~=3.8.0` 을 요구한다. 3.3.2 에서는 `mjtDisableBit.mjDSBL_SPRING` 없음으로
+  Newton 매니저 초기화가 실패. venv 를 3.8.1 로 올렸고 `smoke_test_x2_mujoco.py` / `mujoco_viewer` 는 그대로 동작.
+- **관절 순서가 다르다.** PhysX 는 BFS(`left_hip_pitch, right_hip_pitch, left_shoulder_pitch, ...`), Newton 은 DFS
+  (`left_hip_pitch, left_hip_roll, ..., left_elbow, right_hip_pitch, ...`; 왼다리 6·왼팔 4·오른다리 6·오른팔 4).
+  env 는 이름으로 관절 그룹을 찾으므로 학습에는 영향이 없지만, 정책의 obs/action 배열 순서가 달라져 MuJoCo 평가
+  스크립트에 `--joint-order newton` 이 필요하다.
+- 검증(진짜 Newton): `check_backend` → `NewtonMJWarpManager`, `isaaclab_newton` Articulation/ContactSensor, 비디오
+  백엔드 `newton_gl`. 64 env × 3 iter 평지·지형생성 모두 통과. 지형생성 64 env 에서 한 번 `malloc(): unaligned
+  tcache chunk detected` 로 코어 덤프가 났으나 재현되지 않음(Newton 1.2.1 beta 로 추정, 장시간 런에서 주시).
+  4096 env 본 학습 `logs/x2_walk/2026-09-17_08-49-00_newton`(1.94 s/iter, VRAM 5.4 GB) 진행 중.
+- 주의: `legged_lab/terrains/ray_caster.py` 는 PhysX RayCaster 를 상속하므로 height scan 을 켜는 태스크는 Newton
+  에서 미검증.
+- 부수 수정: torch 2.10 에서 `torch.onnx.export` 기본이 dynamo 경로라 opset 11 다운컨버트가 `CastLike` 에서
+  실패 → `legged_lab/utils/exporter.py` 에 `dynamo=False`(검증 완료, 단일 `policy.onnx` 생성).
+
+- **Newton 이 학습되지 않던 원인(2026-09-17 확정, 09-18 검증).** X2 USD 의 관절 DriveAPI 가 강성 0·감쇠 0 이면 Newton 은
+  임포트 시 그 관절을 EFFORT 모드(액추에이터 없음)로 분류해 실행 시점 ImplicitActuator 게인이 무시된다 → 0 행동 서 있기에서
+  0.46 s 만에 무릎이 접힘. PhysX 는 실행 시점 게인이 드라이브를 만들어 무관. 변환 시 `--joint-stiffness 1.0 --joint-damping 1.0
+  --joint-target-type position` 자리표시자를 심는 것으로 해결(에셋 README). Robotis cyclo_lab K1 도 같은 처방.
+  09-17 의 Newton 런 두 개는 이 상태로 돈 것이라 `_nodrive` 로 개명·폐기.
+- **Newton 전용 설정(09-18, `legged_lab/utils/env_utils/physics.py`).** `use_newton_actuators=True`, 지면 마찰 0.6(MuJoCo 는
+  두 콜라이더 마찰을 max 로 합치므로 지면 1.0 이면 로봇 마찰 무작위화가 묻힘; 첫 런은 0.0 으로 돌렸고 mujoco_warp 가
+  `friction < MJ_MINMU(1e-5) may cause NaN` 경고를 내서 09-18 오후 1e-4 로 올림; 09-21 `newton_contacts=mujoco` 재학습에서 1e-4 가 첫 반복부터
+  전 env NaN 을 내서 로봇 무작위화 하한인 0.6 으로 확정), 접촉 센서 `force_threshold=1.0`(Newton 은
+  None→0 N). PhysX 경로 값은 그대로. 진단으로 관절 모드 POSITION·발 마찰 0.60~0.997·지면 0 확인. Newton 모델의 정적
+  구 `ft_0`(1 cm, 원점, flags 8)는 FrameView 보조 shape 이며 충돌하지 않는다.
+- **변환기 관성 버그(09-18).** Isaac Sim 6.0.1 번들 `urdf-usd-converter` 0.1.3 은 `physics:principalAxes` 를 뒤집어 쓴다
+  (0.3.0 에서 수정). 0.3.0 은 `NewtonMassAPI` 스키마가 Kit 6.0.1 의 `omni.usd.schema.newton`(플러그인 이름 `newton`,
+  구버전) 과 충돌해 Kit 안에서 못 쓴다(prebundle 교체·PYTHONPATH 로도 불가). 대신 `flatten_usd.py --conjugate-principal-axes`
+  로 쿼터니언 켤레를 써 넣고 `check_usd_inertia.py` 로 검산(ok 18 / inverted 0 / composite 3). 크기는 작아(비대각 부호,
+  다리 관절 유효 관성 대비 ~2 %) sim2sim 갭의 주원인은 아니다. 기존 PhysX 정책은 재학습하지 않고 기준선으로 둔다.
+- Newton 은 시작 시 1/3 가량 `Registered backend 'newton'` 직후 100 % CPU 로 멈춘다(SIGKILL 필요). `~/smoke/retry.sh` 로
+  최대 3회 재시도.
+
+PhysX 두 런의 MuJoCo 평가와 영상은 `docs/study/2026-09-17-x2-walk-physx-runs-and-sim2sim.md` 에 있다.

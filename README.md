@@ -68,7 +68,7 @@ pip install -e .
 
 ```bash
 pip install -e . --no-deps
-pip install "mujoco==3.3.2" mujoco-python-viewer matplotlib
+pip install "mujoco~=3.8.0" mujoco-python-viewer matplotlib   # 3.8.x: required by Newton/mujoco-warp, sim2sim scripts verified on 3.8.1
 pip install --no-deps pynput python-xlib six
 ```
 
@@ -193,6 +193,66 @@ python legged_lab/scripts/train.py --task=walk --headless --logger=tensorboard -
 python legged_lab/scripts/train.py --task=run --headless --logger=tensorboard --num_envs=4096
 ```
 
+#### Physics backend (PhysX or Newton / MuJoCo-Warp)
+
+Isaac Lab 3.0 can run the same task on the Newton backend with the MuJoCo-Warp solver instead of PhysX.
+`--physics newton` switches the backend (default `physx`, or `sim.physics_backend` in the task config); the
+Newton solver settings mirror Isaac Lab's rough-terrain locomotion preset. Training in MuJoCo physics narrows the
+gap when the policy is later evaluated or deployed through MuJoCo (sim2sim).
+
+```bash
+python legged_lab/scripts/train.py --task=x2_walk --headless --logger=tensorboard --physics=newton --run_name=newton
+python legged_lab/scripts/play.py --task=x2_walk --physics=newton --num_envs=1
+```
+
+Two things to know when switching backends:
+
+- **Joint order changes.** PhysX enumerates joints breadth-first (`left_hip_pitch, right_hip_pitch,
+  left_shoulder_pitch, ...`), Newton depth-first (`left_hip_pitch, left_hip_roll, ..., left_elbow, right_hip_pitch, ...`).
+  The env resolves joint groups by name, so training is unaffected, but a policy's observation/action layout follows
+  the backend it was trained on. `smoke_test_x2_mujoco.py --joint-order {physx,newton}` selects the layout.
+- **MuJoCo version.** `newton[sim]` needs `mujoco~=3.8.0`; with 3.3.2 the Newton backend fails at import
+  (`mjtDisableBit has no attribute mjDSBL_SPRING`). The CPU scripts run unchanged on 3.8.1.
+- **The USD joint drives must not be zero-gain.** Newton infers each joint's target mode from the USD `DriveAPI`
+  when the asset is imported: stiffness 0 and damping 0 means EFFORT mode (no actuator), and the
+  `ImplicitActuator` gains written at runtime are then ignored, so the robot folds at the knees within 0.5 s and
+  a training run never leaves ~-6 mean reward. PhysX is unaffected because its runtime gain writes create the
+  drive. The X2 asset is therefore converted with a 1.0/1.0 position-drive placeholder
+  (`legged_lab/assets/agibot_x2/README.md`); TienKung's `tienkung2_lite_physics.usd` still has zero gains and
+  needs the same treatment before it can train on Newton. ROBOTIS hit the identical issue on K1
+  (`cyclo_lab`, branch `k1/isaacsim-6-newton`).
+- **Newton-only settings applied automatically** (`legged_lab/utils/env_utils/physics.py`, PhysX values unchanged):
+  `SimulationCfg.use_newton_actuators=True` (native actuator path, CUDA-graph decimation loop), ground friction 0.6
+  (MuJoCo combines the two colliders' friction with `max`, so a 1.0 ground would override the robot's 0.6-1.0
+  friction randomization; 0.6 is the lower bound of that range, and a near-zero ground made MuJoCo-Warp blow up
+  to NaN under `newton_contacts=mujoco`), and `ContactSensorCfg.force_threshold=1.0` (Newton resolves `None` to 0 N, which makes
+  air/contact-time transitions flicker). `SimCfg.newton_contacts` (`--newton_contacts mujoco`) switches the Newton
+  backend to MuJoCo's own contact pipeline; the env detects non-finite robot state, zeroes the poisoned MuJoCo-Warp
+  world buffers (`sanitize_newton_worlds`), resets the env and drops its reward, because MuJoCo-Warp occasionally
+  blows a single world up to NaN and a plain reset does not clear the solver's internal arrays.
+
+A zero-action standing test isolates the asset/actuator path from the policy - the pelvis should settle at
+~0.59 m (PhysX) / ~0.61 m (Newton) and stay there for the whole clip:
+
+```bash
+python legged_lab/scripts/record_play.py --task=x2_walk --headless --enable_cameras --physics=newton \
+    --policy none --command 0 0 0 --duration 6 --out outputs/stand/newton_stand.mp4
+```
+
+Verified on RTX 5070 Ti: `x2_walk` 4096 envs at 1.9 s/iter, 5.4 GB VRAM with Newton (PhysX: 1.4-2.3 s/iter, 7.8 GB).
+Check `env.sim.physics_manager.__name__` (`NewtonMJWarpManager` vs `PhysxManager`) if in doubt - see
+`docs/plan/2026-09-15-isaaclab-3-migration.md` §7 for why. Not verified: height scan / lidar / camera variants
+(the repository's `RayCaster` subclass inherits the PhysX implementation).
+
+`record_play.py` records a headless rollout to mp4 (Kit RTX camera on PhysX, Newton GL viewer on Newton) and
+`export_policy.py` exports a checkpoint and exits:
+
+```bash
+python legged_lab/scripts/export_policy.py --task=x2_walk --headless --load_run=<run> --checkpoint=model_10000.pt --physics=newton --name=policy_10000
+python legged_lab/scripts/record_play.py --task=x2_walk --headless --enable_cameras --load_run=<run> --checkpoint=model_10000.pt \
+    --physics=newton --command 0.5 0 0 --duration 10 --out outputs/newton_10000.mp4
+```
+
 ### Play
 
 Run the trained policy.
@@ -210,6 +270,16 @@ Exported_policy/ contains pretrained policies provided by the project. When usin
 
 ```bash
 python legged_lab/scripts/sim2sim.py --task walk --policy Exported_policy/walk.pt --duration 100
+```
+
+`sim2sim.py` is TienKung-only: it hard-codes TienKung's MJCF (`<position>` actuators with gains in the XML), joint
+order, default pose and sensor layout. For AgiBot X2 use `smoke_test_x2_mujoco.py`, which closes the PD loop in the
+script on the X2 MJCF (`<motor>` torque actuators) and reports pelvis height, displacement and falls:
+
+```bash
+python legged_lab/scripts/smoke_test_x2_mujoco.py --policy logs/x2_walk/<run>/exported/policy.pt \
+    --gait-cycle 0.68 --duration 10 --command 0.5 0 0 --joint-order physx   # newton for Newton-trained policies
+# add --render --out outputs/<name> for an mp4 (chase camera, 1280x720, 25 fps)
 ```
 
 ### Sim2Real
