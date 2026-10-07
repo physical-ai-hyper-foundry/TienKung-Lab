@@ -32,17 +32,30 @@ python legged_lab/scripts/prepare_agibot_x2.py
 #    The 3.0 importer takes an output *directory* and writes <dir>/<urdf-stem>/<urdf-stem>.usda
 #    (a layered asset with a payloads/ folder next to it). convert_urdf.py is not part of the wheel:
 #    clone https://github.com/isaac-sim/IsaacLab at tag v3.0.0-beta2.patch1 for the script.
+#    The joint drive must NOT be zero-gain: Newton classifies a DriveAPI with stiffness 0 and damping 0
+#    as EFFORT mode (no actuator), and the ImplicitActuator gains written at runtime are then ignored,
+#    so the robot collapses. The 1.0/1.0 position drive is a placeholder that AGIBOT_X2_CFG overwrites.
 python <path-to-IsaacLab>/scripts/tools/convert_urdf.py \
     legged_lab/assets/agibot_x2/urdf/x2_ultra_locked20.urdf \
     legged_lab/assets/agibot_x2/usd \
-    --merge-joints --joint-stiffness 0.0 --joint-damping 0.0 --joint-target-type none
+    --merge-joints --joint-stiffness 1.0 --joint-damping 1.0 --joint-target-type position --headless
 
-# 3. Flatten the link hierarchy. The 6.0 importer nests each child link under its parent
-#    (Geometry/pelvis/left_hip_pitch_link/...), and Isaac Lab 3.0.0-beta2.patch1 only puts a contact
-#    reporter on the root body of such assets (isaac-sim/IsaacLab#5126, fixed upstream after the tag).
-#    The script moves all 21 bodies directly under Geometry/, bakes world poses and remaps joint targets.
+# 3. Flatten the link hierarchy and fix the inertia axes. The 6.0 importer nests each child link under
+#    its parent (Geometry/pelvis/left_hip_pitch_link/...), and Isaac Lab 3.0.0-beta2.patch1 only puts a
+#    contact reporter on the root body of such assets (isaac-sim/IsaacLab#5126, fixed upstream after the
+#    tag). The script moves all 21 bodies directly under Geometry/, bakes world poses and remaps joint
+#    targets. --conjugate-principal-axes corrects physics:principalAxes, which the bundled
+#    urdf-usd-converter 0.1.3 writes inverted (fixed in 0.3.0, whose NewtonMassAPI schema Kit 6.0.1
+#    cannot load, so the conversion stays on 0.1.3 and the flatten step fixes the axes instead).
 python legged_lab/assets/agibot_x2/flatten_usd.py \
     legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20.usda \
+    legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20_flat.usd \
+    --conjugate-principal-axes
+
+# 4. Verify: every non-merged link must report "ok" (R*D*R^T reproduces the URDF tensor); merged
+#    bodies (pelvis, elbows) report "composite" because the URDF link alone is not the merged body.
+python legged_lab/assets/agibot_x2/check_usd_inertia.py \
+    legged_lab/assets/agibot_x2/urdf/x2_ultra_locked20.urdf \
     legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/x2_ultra_locked20_flat.usd
 ```
 

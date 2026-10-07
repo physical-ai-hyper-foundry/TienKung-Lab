@@ -11,9 +11,14 @@ PhysX pattern), so only the root body gets a contact reporter. See isaac-sim/Isa
 ``develop`` after beta2.patch1). Until that fix ships, this script moves every rigid body directly under the
 ``Geometry`` scope, bakes its world pose into its xform, and remaps joint/robot-schema relationships.
 
+``--conjugate-principal-axes`` also fixes the link inertia: ``urdf-usd-converter`` < 0.3.0 (Isaac Sim 6.0.x bundles
+0.1.3) authors ``physics:principalAxes`` with the inverse rotation, so ``R * diag * R^T`` yields the transposed URDF
+tensor. Conjugating the quaternion restores the URDF inertia exactly; verify with ``check_usd_inertia.py``. The 0.3.0
+converter cannot run inside Kit 6.0.1 (its ``NewtonMassAPI`` schema clashes with Kit's older ``omni.usd.schema.newton``).
+
 Usage (run with the Isaac Lab venv, no Kit app needed)::
 
-    python legged_lab/assets/agibot_x2/flatten_usd.py <in.usda> <out.usd>
+    python legged_lab/assets/agibot_x2/flatten_usd.py <in.usda> <out.usd> --conjugate-principal-axes
 
 Write the output as binary ``.usd``: flattening inlines the mesh payloads, and the ASCII form is ~150 MB.
 """
@@ -47,7 +52,22 @@ def _remap_targets(stage: Usd.Stage, mapping: dict[Sdf.Path, Sdf.Path]) -> int:
     return count
 
 
-def flatten(src: str, dst: str) -> list[str]:
+def _conjugate_principal_axes(stage: Usd.Stage) -> int:
+    """Invert ``physics:principalAxes`` on every prim with a MassAPI (see module docstring)."""
+    count = 0
+    for prim in stage.Traverse():
+        if not prim.HasAPI(UsdPhysics.MassAPI):
+            continue
+        attr = UsdPhysics.MassAPI(prim).GetPrincipalAxesAttr()
+        quat = attr.Get()
+        if quat is None:
+            continue
+        attr.Set(quat.GetConjugate())
+        count += 1
+    return count
+
+
+def flatten(src: str, dst: str, conjugate_principal_axes: bool = False) -> list[str]:
     stage = Usd.Stage.Open(src)
     flat_layer = stage.Flatten()
     fstage = Usd.Stage.Open(flat_layer)
@@ -94,18 +114,26 @@ def flatten(src: str, dst: str) -> list[str]:
             raise RuntimeError(f"Non-unit scale on {old} is not supported")
 
     n_remap = _remap_targets(fstage, mapping)
-    flat_layer.Export(dst)
-    return [
+    lines = [
         f"moved {len(nested)} of {len(bodies)} rigid bodies under {geom.GetPath()}",
         f"remapped {n_remap} relationships/connections",
-        f"wrote {dst}",
     ]
+    if conjugate_principal_axes:
+        lines.append(f"conjugated physics:principalAxes on {_conjugate_principal_axes(fstage)} bodies")
+    flat_layer.Export(dst)
+    lines.append(f"wrote {dst}")
+    return lines
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("src", help="Interface .usda written by convert_urdf.py")
     parser.add_argument("dst", help="Output single-layer .usd (binary)")
+    parser.add_argument(
+        "--conjugate-principal-axes",
+        action="store_true",
+        help="Invert physics:principalAxes on every body (needed for urdf-usd-converter < 0.3.0 output).",
+    )
     args = parser.parse_args()
-    for line in flatten(args.src, args.dst):
+    for line in flatten(args.src, args.dst, conjugate_principal_axes=args.conjugate_principal_axes):
         print(line)
