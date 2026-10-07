@@ -1,0 +1,861 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "URDF USD Converter v0.1.3"
+    }
+    defaultPrim = "tn__X2Ultra_qA"
+    doc = """Generated from Composed Stage of root layer /tmp/tmpbu9uxf1_/X2-Ultra.usdc
+
+
+Generated from Composed Stage of root layer /tmp/urdf_import_x2_ultra_locked20_e_copfx_/usdex_x2_ultra_locked20/X2-Ultra.usdc
+
+
+Generated from Composed Stage of root layer /tmp/urdf_import_x2_ultra_locked20_e_copfx_/temp_x2_ultra_locked20/x2_ultra_locked20.usd
+
+
+Generated from Composed Stage of root layer /home/bigwaverobotics/TienKung-Lab/legged_lab/assets/agibot_x2/usd/x2_ultra_locked20/payloads/base.usd
+"""
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./physics.usda@
+    ]
+    upAxis = "Z"
+)
+
+over "tn__X2Ultra_qA"
+{
+    over "Physics"
+    {
+        def MjcActuator "left_hip_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_hip_pitch_joint>
+        }
+
+        def MjcActuator "left_hip_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_hip_roll_joint>
+        }
+
+        def MjcActuator "left_hip_yaw_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_hip_yaw_joint>
+        }
+
+        def MjcActuator "left_knee_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_knee_joint>
+        }
+
+        def MjcActuator "left_ankle_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_ankle_pitch_joint>
+        }
+
+        def MjcActuator "left_ankle_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_ankle_roll_joint>
+        }
+
+        def MjcActuator "right_hip_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_hip_pitch_joint>
+        }
+
+        def MjcActuator "right_hip_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_hip_roll_joint>
+        }
+
+        def MjcActuator "right_hip_yaw_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_hip_yaw_joint>
+        }
+
+        def MjcActuator "right_knee_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 120
+            uniform double mjc:forceRange:min = -120
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_knee_joint>
+        }
+
+        def MjcActuator "right_ankle_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_ankle_pitch_joint>
+        }
+
+        def MjcActuator "right_ankle_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_ankle_roll_joint>
+        }
+
+        def MjcActuator "left_shoulder_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_shoulder_pitch_joint>
+        }
+
+        def MjcActuator "left_shoulder_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_shoulder_roll_joint>
+        }
+
+        def MjcActuator "left_shoulder_yaw_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_shoulder_yaw_joint>
+        }
+
+        def MjcActuator "left_elbow_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/left_elbow_joint>
+        }
+
+        def MjcActuator "right_shoulder_pitch_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_shoulder_pitch_joint>
+        }
+
+        def MjcActuator "right_shoulder_roll_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 60
+            uniform double mjc:forceRange:min = -60
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_shoulder_roll_joint>
+        }
+
+        def MjcActuator "right_shoulder_yaw_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_shoulder_yaw_joint>
+        }
+
+        def MjcActuator "right_elbow_joint_actuator"
+        {
+            uniform double[] mjc:biasPrm = [0, -0.01745329238474369, -0.01745329238474369, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:biasType = "affine"
+            uniform double mjc:forceRange:max = 36
+            uniform double mjc:forceRange:min = -36
+            uniform double[] mjc:gainPrm = [0.01745329238474369, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            uniform token mjc:gainType = "fixed"
+            custom rel mjc:target
+            prepend rel mjc:target = </tn__X2Ultra_qA/Physics/right_elbow_joint>
+        }
+
+        over "left_hip_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_hip_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_shoulder_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_shoulder_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_hip_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_hip_yaw_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_knee_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_ankle_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_ankle_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_hip_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_hip_yaw_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_knee_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_ankle_pitch_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_ankle_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_shoulder_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_shoulder_yaw_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "left_elbow_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_shoulder_roll_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_shoulder_yaw_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+
+        over "right_elbow_joint" (
+            delete apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+        )
+        {
+        }
+    }
+
+    over "Geometry"
+    {
+        over "pelvis"
+        {
+            over "left_hip_pitch_link"
+            {
+                over "left_hip_roll_link"
+                {
+                    over "left_hip_yaw_link"
+                    {
+                        over "left_knee_link"
+                        {
+                            over "left_ankle_pitch_link"
+                            {
+                                over "left_ankle_roll_link"
+                                {
+                                    over "left_ankle_roll_link"
+                                    {
+                                    }
+
+                                    over "sphere"
+                                    {
+                                    }
+
+                                    over "sphere_1"
+                                    {
+                                    }
+
+                                    over "sphere_2"
+                                    {
+                                    }
+
+                                    over "sphere_3"
+                                    {
+                                    }
+
+                                    over "sphere_4"
+                                    {
+                                    }
+
+                                    over "sphere_5"
+                                    {
+                                    }
+
+                                    over "sphere_6"
+                                    {
+                                    }
+
+                                    over "sphere_7"
+                                    {
+                                    }
+
+                                    over "sphere_8"
+                                    {
+                                    }
+
+                                    over "sphere_9"
+                                    {
+                                    }
+
+                                    over "sphere_10"
+                                    {
+                                    }
+
+                                    over "sphere_11"
+                                    {
+                                    }
+                                }
+
+                                over "left_ankle_pitch_link"
+                                {
+                                }
+                            }
+
+                            over "left_knee_link"
+                            {
+                            }
+
+                            over "left_knee_link_1"
+                            {
+                            }
+                        }
+
+                        over "left_hip_yaw_link"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+
+                        over "cylinder_1"
+                        {
+                        }
+
+                        over "cylinder_2"
+                        {
+                        }
+
+                        over "cylinder_3"
+                        {
+                        }
+
+                        over "cylinder_4"
+                        {
+                        }
+                    }
+
+                    over "left_hip_roll_link"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "left_hip_pitch_link"
+                {
+                }
+
+                over "cylinder"
+                {
+                }
+            }
+
+            over "right_hip_pitch_link"
+            {
+                over "right_hip_roll_link"
+                {
+                    over "right_hip_yaw_link"
+                    {
+                        over "right_knee_link"
+                        {
+                            over "right_ankle_pitch_link"
+                            {
+                                over "right_ankle_roll_link"
+                                {
+                                    over "right_ankle_roll_link"
+                                    {
+                                    }
+
+                                    over "sphere"
+                                    {
+                                    }
+
+                                    over "sphere_1"
+                                    {
+                                    }
+
+                                    over "sphere_2"
+                                    {
+                                    }
+
+                                    over "sphere_3"
+                                    {
+                                    }
+
+                                    over "sphere_4"
+                                    {
+                                    }
+
+                                    over "sphere_5"
+                                    {
+                                    }
+
+                                    over "sphere_6"
+                                    {
+                                    }
+
+                                    over "sphere_7"
+                                    {
+                                    }
+
+                                    over "sphere_8"
+                                    {
+                                    }
+
+                                    over "sphere_9"
+                                    {
+                                    }
+
+                                    over "sphere_10"
+                                    {
+                                    }
+
+                                    over "sphere_11"
+                                    {
+                                    }
+                                }
+
+                                over "right_ankle_pitch_link"
+                                {
+                                }
+                            }
+
+                            over "right_knee_link"
+                            {
+                            }
+
+                            over "right_knee_link_1"
+                            {
+                            }
+                        }
+
+                        over "right_hip_yaw_link"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+
+                        over "cylinder_1"
+                        {
+                        }
+
+                        over "cylinder_2"
+                        {
+                        }
+
+                        over "cylinder_3"
+                        {
+                        }
+
+                        over "cylinder_4"
+                        {
+                        }
+                    }
+
+                    over "right_hip_roll_link"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "right_hip_pitch_link"
+                {
+                }
+
+                over "cylinder"
+                {
+                }
+            }
+
+            over "left_shoulder_pitch_link"
+            {
+                over "left_shoulder_roll_link"
+                {
+                    over "left_shoulder_yaw_link"
+                    {
+                        over "left_elbow_link"
+                        {
+                            over "left_elbow_link"
+                            {
+                            }
+
+                            over "left_wrist_yaw_link"
+                            {
+                            }
+
+                            over "left_wrist_pitch_link"
+                            {
+                            }
+
+                            over "left_wrist_roll_link"
+                            {
+                            }
+
+                            over "left_elbow_link_1"
+                            {
+                            }
+
+                            over "cylinder"
+                            {
+                            }
+
+                            over "left_wrist_roll_link_1"
+                            {
+                            }
+                        }
+
+                        over "left_shoulder_yaw_link"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+
+                        over "cylinder_1"
+                        {
+                        }
+                    }
+
+                    over "left_shoulder_roll_link"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "left_shoulder_pitch_link"
+                {
+                }
+
+                over "cylinder"
+                {
+                }
+            }
+
+            over "right_shoulder_pitch_link"
+            {
+                over "right_shoulder_roll_link"
+                {
+                    over "right_shoulder_yaw_link"
+                    {
+                        over "right_elbow_link"
+                        {
+                            over "right_elbow_link"
+                            {
+                            }
+
+                            over "right_wrist_yaw_link"
+                            {
+                            }
+
+                            over "right_wrist_pitch_link"
+                            {
+                            }
+
+                            over "right_wrist_roll_link"
+                            {
+                            }
+
+                            over "right_elbow_link_1"
+                            {
+                            }
+
+                            over "cylinder"
+                            {
+                            }
+
+                            over "right_wrist_roll_link_1"
+                            {
+                            }
+                        }
+
+                        over "right_shoulder_yaw_link"
+                        {
+                        }
+
+                        over "cylinder"
+                        {
+                        }
+
+                        over "cylinder_1"
+                        {
+                        }
+                    }
+
+                    over "right_shoulder_roll_link"
+                    {
+                    }
+
+                    over "cylinder"
+                    {
+                    }
+                }
+
+                over "right_shoulder_pitch_link"
+                {
+                }
+
+                over "cylinder"
+                {
+                }
+            }
+
+            over "pelvis"
+            {
+            }
+
+            over "imu_in_pelvis_link"
+            {
+            }
+
+            over "waist_yaw_link"
+            {
+            }
+
+            over "waist_pitch_link"
+            {
+            }
+
+            over "torso_link"
+            {
+            }
+
+            over "agibot"
+            {
+            }
+
+            over "imu_in_torso_link"
+            {
+            }
+
+            over "lidar_chest_front_link"
+            {
+            }
+
+            over "head_yaw_link"
+            {
+            }
+
+            over "head_pitch_link"
+            {
+            }
+
+            over "rgbd_head_front_link"
+            {
+            }
+
+            over "stereo_head_front_link"
+            {
+            }
+
+            over "rgb_head_rear_link"
+            {
+            }
+
+            over "rgb_head_center_link"
+            {
+            }
+
+            over "cylinder"
+            {
+            }
+
+            over "box"
+            {
+            }
+
+            over "cylinder_1"
+            {
+            }
+
+            over "torso_link_1"
+            {
+            }
+
+            over "cylinder_2"
+            {
+            }
+        }
+    }
+
+    over "Materials"
+    {
+    }
+
+    over "VisualMaterials"
+    {
+    }
+}
+

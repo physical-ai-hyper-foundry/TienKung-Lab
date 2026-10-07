@@ -7,8 +7,9 @@ run_bash.sh
 wandb
 MUJOCO_LOG.TXT
 .history
-legged_lab/assets/agibot_x2/meshes
-legged_lab/assets/agibot_x2/usd/
+# USD: 검증된 변환본(x2_ultra_locked20)만 추적. 구버전 변환·백업은 제외
+legged_lab/assets/agibot_x2/usd/x2_ultra_locked20_conv013/
+legged_lab/assets/agibot_x2/usd/**/*.bak_nodrive
 
 # demo capture harness (Playwright)
 tools/demo/capture/node_modules/
